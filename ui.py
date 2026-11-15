@@ -203,6 +203,7 @@ SPEC = {
     "Stage": dict(t="Stage", type="stage", pri=2, left=True),
     "TT_Score": dict(t="Trend Template", type="tt", pri=2),
     "RS_Line_New_High": dict(t="RS line high", type="chk", pri=3),
+    "RS_Line_Near_High": dict(t="RS line near high", type="chk", pri=3),
     "RS_Blue_Dot": dict(t="Blue dot", type="dot", pri=3),
     "RSI14": dict(t="RSI", type="n1", pri=2),
     "Close": dict(t="Close", type="n2", pri=1),
@@ -227,6 +228,9 @@ SPEC = {
     "Stage1_Base": dict(t="Stage 1 base", type="chk", pri=3),
     "Base_Days": dict(t="Base length", type="days", pri=2),
     "Base_Depth_%": dict(t="Base depth", type="pct", pri=3),
+    "Base_Forming": dict(t="Base forming", type="chk", pri=3),
+    "Market_Above_10SMA": dict(t="Market above 10-day SMA", type="chk", pri=3),
+    "Market_Above_20SMA": dict(t="Market above 20-day SMA", type="chk", pri=3),
     # industry table
     "Rank": dict(t="#", type="n0", pri=1),
     "Group": dict(t="Group", type="grp", pri=1, left=True),
