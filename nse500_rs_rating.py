@@ -257,6 +257,17 @@ def technicals(prices, bench, rs_now):
     s50, s150, s200 = sma50.iloc[-1], sma150.iloc[-1], sma200.iloc[-1]
     s200_prev = sma200.iloc[-1 - SMA200_RISING_DAYS]
 
+    # Broad-market gate for the Momentum Candidates screen. This uses the same
+    # benchmark series as RS calculations (Nifty 500, with Nifty 50 fallback).
+    market = pd.Series(bench).dropna()
+    market = market.loc[market.index <= p.index[-1]]
+    if len(market) >= 20:
+        market_close = float(market.iloc[-1])
+        market_above_10 = bool(market_close > market.iloc[-10:].mean())
+        market_above_20 = bool(market_close > market.iloc[-20:].mean())
+    else:
+        market_above_10 = market_above_20 = False
+
     win = p.iloc[-TRADING_DAYS_52W:]
     hi52, lo52 = win.max(), win.min()
 
@@ -305,6 +316,9 @@ def technicals(prices, bench, rs_now):
         "RS_Line_New_High": rsl_new_high,
         "RS_Line_Near_High": rsl_near_high,
         "RS_Line_Uptrend": rsl_uptrend,
+        "Market_Above_10SMA": market_above_10,
+        "Market_Above_20SMA": market_above_20,
+        "Market_Trend_OK": market_above_10 and market_above_20,
         "RS_Blue_Dot": blue_dot,
         "RS_Excess_3M_%": rs_3m.round(1),
         "RS_Excess_6M_%": rs_6m.round(1),
@@ -598,7 +612,8 @@ def build_table(prices, bench, meta, ohlcv=None, shares=None):
              "Weighted_Return_%", "Stage", "TT_Score", "TT_Pass", "Stage1_Base", "VCP",
              "VCP_Setup", "Vol_Breakout", "Liquid", "Avg_Value_Cr", "Market_Cap_Cr", "RS_Line_New_High", "RS_Line_Near_High",
              "RS_Blue_Dot", "RS_Line_Uptrend", "RSI14", "Close", "Pct_From_52W_High",
-             "Pct_Above_52W_Low", "SMA50", "SMA150", "SMA200"]
+             "Pct_Above_52W_Low", "SMA50", "SMA150", "SMA200", "Market_Above_10SMA",
+             "Market_Above_20SMA", "Market_Trend_OK"]
     front = [c for c in front if c in out.columns]
     rest = [c for c in out.columns if c not in front and c != "Ticker"]
     out = out[front + rest]
