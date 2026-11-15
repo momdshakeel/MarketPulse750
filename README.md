@@ -14,6 +14,11 @@ for relative strength, momentum, and classic trend / pattern setups. Educational
 - **Breadth and sector strength** (liquid stocks only): advancers / decliners, 52-week highs and lows, share of
   stocks above the 50 / 150 / 200-day averages, Stage 2 and Trend Template shares, and a sector ranking.
 - Sortable, responsive tables, font choice, light / dark mode, CSV downloads.
+- **Momentum Candidates:** a staged screen requiring a supportive benchmark (above its 10- and 20-day averages),
+  price within 25% of its 52-week high and above its 50-day average, a base no deeper than 20%, a pivot within
+  10%, and an RS line within 5% of its 52-week high. First-leg quality, 10/20-day base support, heavy-volume
+  rejection, a strong first leg (roughly 40% or more, with stronger up candles and above-average volume),
+  and price-action smoothness remain chart-review checks.
 
 ## How it works
 
@@ -70,3 +75,5 @@ data/                          created by the daily job - do not edit by hand
 - 52-week highs / lows use closing prices. Stages use the 150-day average (about 30 weeks).
 - VCP, bases and breakouts are rule-based approximations - always confirm on a chart.
 - The RS line is measured against the Nifty 500 index. Yahoo data can have gaps.
+- Momentum Candidates uses the RS benchmark series as its market gate (Nifty 500, with Nifty 50 fallback).
+  The gate requires the benchmark close above both its 10-day and 20-day averages; it uses the latest daily close.
