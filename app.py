@@ -271,6 +271,34 @@ vcp = df[df.VCP_Setup].sort_values("Pct_To_Pivot")
 brk = df[df.Vol_Breakout].sort_values(["Breakout_Days_Ago", "Breakout_Vol_x"], ascending=[True, False])
 s1 = df[df.Stage1_Base].sort_values("Base_Days", ascending=False)
 
+# Momentum Candidates: objective daily fields narrow the universe; chart-only
+# checks are shown with the screen so the rule-based output is not mistaken for
+# an automatic assessment of subjective price action.
+momentum_max_pivot_gap = 10.0
+momentum_required = ["Pct_From_52W_High", "Pct_Above_50SMA", "Base_Forming",
+                     "Base_Depth_%", "Pct_To_Pivot", "RS_Line_Near_High", "Market_Trend_OK"]
+momentum_ready = all(field in df.columns for field in momentum_required)
+momentum_market_ok = bool(
+    result["Market_Trend_OK"].fillna(False).astype(bool).all()
+) if "Market_Trend_OK" in result.columns and not result.empty else False
+if momentum_ready:
+    momentum_candidates = df[
+        (pd.to_numeric(df["Pct_From_52W_High"], errors="coerce") >= -25)
+        & (pd.to_numeric(df["Pct_Above_50SMA"], errors="coerce") >= 0)
+        & df["Base_Forming"].fillna(False).astype(bool)
+        & (pd.to_numeric(df["Base_Depth_%"], errors="coerce") <= 20)
+        & (pd.to_numeric(df["Pct_To_Pivot"], errors="coerce") >= 0)
+        & (pd.to_numeric(df["Pct_To_Pivot"], errors="coerce") <= momentum_max_pivot_gap)
+        & df["RS_Line_Near_High"].fillna(False).astype(bool)
+    ].copy()
+    if not momentum_market_ok:
+        momentum_candidates = momentum_candidates.iloc[0:0]
+    momentum_candidates = momentum_candidates.sort_values(
+        ["Pct_To_Pivot", "RS_Rating"], ascending=[True, False]
+    )
+else:
+    momentum_candidates = df.iloc[0:0].copy()
+
 # ---------------- Header + KPI cards ----------------
 ui.hero("MarketPulse 750",
         "Relative-strength ranking, Minervini Trend Template, VCP setups, volume breakouts, Weinstein "
@@ -560,6 +588,7 @@ def show_breadth_and_sectors():
 
 SCREEN_LIBRARY = {
     "🏆  Discovery · Top picks": "top",
+    "✨  Discovery · Momentum Candidates": "momentum",
     "💪  Strength · Trend Template": "trend",
     "🧩  Setups · VCP setups": "vcp",
     "🚀  Setups · Breakouts": "breakouts",
@@ -571,6 +600,7 @@ SCREEN_LIBRARY = {
 }
 SCREEN_DESCRIPTIONS = {
     "top": "A focused shortlist of high-RS stocks passing the trend and RS-line checks.",
+    "momentum": "A staged shortlist near a possible breakout, with explicit market, trend, base, RS and chart-review checks.",
     "trend": "Stocks meeting all eight Minervini Trend Template conditions.",
     "vcp": "Tightening bases with quieter volume and price near a possible pivot.",
     "breakouts": "Recent price breakouts supported by elevated volume.",
@@ -601,6 +631,52 @@ with st.container(border=True):
 if active_screen == "top":
     show(top, "top_picks", f"Passes all 8 Trend Template conditions, <b>RS ≥ {pref_rs}</b>, RS line within 5% "
                            f"of its 52-week high and <b>RSI &gt; {rsi_min}</b>.")
+elif active_screen == "momentum":
+    st.markdown("### ✨ Momentum Candidates")
+    st.caption("A rule-based shortlist for chart review. It does not confirm a breakout or issue a trade signal.")
+    if not momentum_ready:
+        st.warning("This deployment’s saved scan does not include the market trend gate yet. Push the code, then run **Daily scan** once to regenerate data.")
+    else:
+        market10 = bool(result["Market_Above_10SMA"].fillna(False).astype(bool).all())
+        market20 = bool(result["Market_Above_20SMA"].fillna(False).astype(bool).all())
+        if market10 and market20:
+            st.success("Market gate passed: the scan benchmark is above both its 10-day and 20-day averages.")
+        else:
+            st.warning("Market gate failed: the scan benchmark is below its 10-day or 20-day average. New candidates are paused.")
+        st.caption("Market gate uses the scanner benchmark for RS (Nifty 500; Nifty 50 fallback). It is an end-of-day check.")
+        with st.expander("How this shortlist is filtered", expanded=True):
+            st.markdown(
+                "1. **Market gate:** benchmark close above its 10-day and 20-day averages. "
+                "If either fails, the candidate list is paused.\n"
+                "2. **Near the high:** within 25% of the 52-week closing high.\n"
+                "3. **Above the 50-day average:** price must be at or above its 50-day SMA.\n"
+                "4. **Base:** detected base depth must be 20% or less; price must be 0–10% below its pivot.\n"
+                "5. **RS line:** within 5% of its 52-week high.\n\n"
+                "**Review the chart before keeping a name:** check for a first leg of roughly 40% or more, with "
+                "stronger up candles, above-average volume and little hesitation; a tight base that holds the "
+                "10- and 20-day averages without a large down day or heavy-volume rejection; and smooth, "
+                "constructive price action. These chart-quality checks are not calculated by this screen. "
+                "The breakout is the final live check."
+            )
+        if momentum_market_ok:
+            st.markdown(f"**{len(momentum_candidates)} candidates** · closest to pivot first")
+            defaults = ["Symbol", "RS_Rating", "Pct_To_Pivot", "Pct_From_52W_High",
+                        "Pct_Above_50SMA", "Base_Depth_%", "RS_Line_New_High",
+                        "RS_Line_Near_High", "Up_Down_Vol_Ratio_20D", "Sector"]
+            visible = choose_table_columns(momentum_candidates, defaults, "momentum_candidates")
+            if visible:
+                ui.table(momentum_candidates, visible, ("Pct_To_Pivot", 1), font, density,
+                         search_keys=["Symbol", "Company Name"], market_context=market_context)
+            else:
+                st.info("Select at least one column to display this table.")
+            if not momentum_candidates.empty:
+                st.download_button(
+                    "⬇️ Download CSV", momentum_candidates.to_csv(index=False).encode("utf-8"),
+                    file_name=f"marketpulse_momentum_candidates_{as_of.date()}.csv",
+                    mime="text/csv", key="dl_momentum_candidates",
+                )
+        elif momentum_market_ok is False:
+            st.info("No candidates are shown while the market gate is below either moving average.")
 elif active_screen == "trend":
     show(tt, "trend_template", "All 8 Minervini conditions: price above the 50/150/200 SMA, 150 &gt; 200 SMA, "
                                "200 SMA rising, 30% above the 52-week low, within 25% of the 52-week high, "
