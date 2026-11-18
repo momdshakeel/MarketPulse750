@@ -33,14 +33,21 @@ LIQ_TEXT = f"avg {m.LIQUIDITY_DAYS}-day traded value ≥ ₹{m.MIN_TRADED_VALUE_
 
 st.set_page_config(page_title="MarketPulse 750", page_icon="📈", layout="wide")
 
-# ---------------- Appearance (first, so the CSS can use the chosen font) ----------------
-with st.sidebar:
-    with st.expander("🎨 Appearance", expanded=False):
-        font = st.selectbox("Font", list(ui.FONTS), index=0)
-        density = st.radio("Table density", ["Comfortable", "Compact"], horizontal=True)
-        st.caption("Light / dark: open the ⋮ menu (top right) → Settings → Theme. "
-                   "The app follows your device by default.")
-ui.inject_css(font)
+# ---------------- Layout switch ----------------
+st.session_state.setdefault("app_layout", "Old view")
+layout_spacer, layout_switch = st.columns([5, 3])
+with layout_switch:
+    st.segmented_control(
+        "App layout", ["Old view", "New view"], key="app_layout",
+        label_visibility="collapsed", help="Switch between the classic sidebar and the wider main-page controls.",
+    )
+new_view = st.session_state["app_layout"] == "New view"
+
+# Inject a stylesheet early so loading messages are themed too. The user-selected
+# font and density are restored from session state and controls appear in Settings.
+font = st.session_state.get("appearance_font", list(ui.FONTS)[0])
+density = st.session_state.get("appearance_density", "Comfortable")
+ui.inject_css(font, hide_sidebar=new_view)
 
 
 # ---------------- Data loading (cached, shared by all visitors) ----------------
@@ -144,20 +151,69 @@ if remote_data_error is not None:
 n_liquid = int(result["Liquid"].sum())
 market_context = m.market_breadth(result)
 
+def reload_latest_data():
+    load_saved.clear()
+    st.session_state["data_refresh_token"] = datetime.now(IST).isoformat(timespec="seconds")
+    st.session_state["latest_data_refresh_notice"] = True
+    if mode == "live":
+        compute.clear()
+        fetch_universe.clear()
+        st.session_state.pop("shares_failed", None)
+    st.rerun()
+
+
+if new_view:
+    update_col, refresh_col = st.columns([4, 1.4], vertical_alignment="center")
+    with update_col:
+        st.caption(
+            f"Prices as of **{as_of.date()}** · Updated {fetched_at:%d %b %Y, %H:%M} IST · "
+            + ("Auto-refreshed on weekdays around 5 pm IST" if mode == "saved"
+               else f"Live data · refreshes every {CACHE_HOURS} hours")
+        )
+    with refresh_col:
+        if st.button("🔄 Reload latest data", key="reload_main", use_container_width=True):
+            reload_latest_data()
+
+ui.hero("MarketPulse 750",
+        "Relative-strength ranking, Minervini Trend Template, VCP setups, volume breakouts, Weinstein "
+        "stages, market breadth and sector strength across the Nifty Total Market (Nifty 500 + Microcap 250).",
+        [f"<b>As of</b> {as_of:%d %b %Y}", f"<b>Updated</b> {fetched_at:%d %b, %H:%M} IST",
+         f"<b>{len(result)}</b> of {n_universe} stocks rated", f"<b>{n_liquid}</b> liquid",
+         f"<b>Market breadth</b> {market_context['market_state']}"],
+        eyebrow="Nifty Total Market · Momentum & relative strength")
+age_days = (datetime.now(IST).date() - as_of.date()).days
+if mode == "saved" and age_days > 4:
+    st.warning(f"⚠️ This data is from {as_of:%d %b %Y} ({age_days} days ago). The daily job may have "
+               f"stopped - open your GitHub repository's **Actions** tab to check.")
+
 # ---------------- Sidebar filters ----------------
 custom_rules = []
-with st.sidebar:
+filter_panel = st.expander("⚙️ Settings & Filters", expanded=False) if new_view else st.sidebar
+with filter_panel:
+    appearance_panel = st.container() if new_view else st.expander("🎨 Appearance", expanded=False)
+    with appearance_panel:
+        if new_view:
+            st.markdown("**Appearance**")
+        font = st.selectbox("Font", list(ui.FONTS), index=0, key="appearance_font")
+        density = st.radio("Table density", ["Comfortable", "Compact"], horizontal=True,
+                           key="appearance_density")
+        st.caption("Light / dark: open the ⋮ menu (top right) → Settings → Theme. "
+                   "The app follows your device by default.")
+    if new_view:
+        st.divider()
     st.subheader("Filters")
-    liquid_only = st.toggle("Liquid stocks only", value=False,
+    liquid_only = st.toggle("Liquid stocks only", value=False, key="filter_liquid_only",
                             help=f"Liquid = {LIQ_TEXT}. Applies to the stock lists. Breadth and sector "
                                  f"figures always use liquid stocks.")
     cap_ok = bool(result["Market_Cap_Cr"].notna().mean() >= 0.5)
     min_cap = st.number_input("Market cap above (₹ crore)", min_value=0, value=500, step=100,
+                              key="filter_min_cap",
                               disabled=not cap_ok,
                               help="Market cap = shares outstanding × latest close (Yahoo Finance). "
                                    "Set 0 to switch the filter off. Applies to the stock lists; breadth, "
                                    "sector figures don't use it.")
-    incl_unknown = st.checkbox("Include unknown market cap", value=False, disabled=not cap_ok,
+    incl_unknown = st.checkbox("Include unknown market cap", value=False, key="filter_include_unknown",
+                               disabled=not cap_ok,
                                help="Stocks for which Yahoo has no share count.")
     if cap_ok:
         n_cap = int((result["Market_Cap_Cr"] > min_cap).sum())
@@ -166,11 +222,11 @@ with st.sidebar:
     else:
         st.caption("⚠️ Market cap data is missing from the current data, so this filter is off. "
                    "It is usually back after the next daily update.")
-    min_rs = st.slider("Minimum RS Rating", 1, 99, 1)
-    pref_rs = st.slider("RS for 'Top picks'", 50, 99, m.PREFERRED_RS)
-    rsi_min = st.slider("RSI above (Top picks)", 0, 80, 50)
-    pick_sector = st.multiselect("Sector", sorted(result["Sector"].dropna().unique()))
-    q = st.text_input("Search symbol / company")
+    min_rs = st.slider("Minimum RS Rating", 1, 99, 1, key="filter_min_rs")
+    pref_rs = st.slider("RS for 'Top picks'", 50, 99, m.PREFERRED_RS, key="filter_pref_rs")
+    rsi_min = st.slider("RSI above (Top picks)", 0, 80, 50, key="filter_rsi_min")
+    pick_sector = st.multiselect("Sector", sorted(result["Sector"].dropna().unique()), key="filter_sector")
+    q = st.text_input("Search symbol / company", key="filter_search")
     custom_metric_fields = [
         "RS_Rating", "RS_Change", "RS_Excess_3M_%", "RS_Excess_6M_%", "Weighted_Return_%",
         "TT_Score", "RSI14", "Pct_Above_50SMA", "Pct_From_52W_High", "Vol_x_50d",
@@ -184,7 +240,10 @@ with st.sidebar:
         and pd.api.types.is_numeric_dtype(result[field].dtype)
         and not pd.api.types.is_bool_dtype(result[field].dtype)
     }
-    with st.expander("🧰 Custom screen builder", expanded=False):
+    custom_builder_panel = st.container() if new_view else st.expander("🧰 Custom screen builder", expanded=False)
+    with custom_builder_panel:
+        if new_view:
+            st.markdown("**🧰 Custom screen builder**")
         picked_metrics = st.multiselect(
             "Add numeric conditions",
             list(metric_options),
@@ -218,26 +277,26 @@ with st.sidebar:
                 threshold = st.number_input("Value", value=middle, step=step, format="%.2f",
                                             key=f"custom_value_{field}")
                 custom_rules.append((field, operator, threshold, None))
-    st.divider()
-    st.caption(f"Prices as of **{as_of.date()}**  \nUpdated {fetched_at:%d %b %Y, %H:%M} IST  \n" +
-               ("Refreshed automatically every weekday evening (~5 pm IST)" if mode == "saved"
-                else f"Live calculation - refreshes every {CACHE_HOURS} hours"))
-    if st.button("🔄 Reload latest data", use_container_width=True):
-        load_saved.clear()
-        st.session_state["data_refresh_token"] = datetime.now(IST).isoformat(timespec="seconds")
-        st.session_state["latest_data_refresh_notice"] = True
-        if mode == "live":
-            compute.clear()
-            fetch_universe.clear()
-            st.session_state.pop("shares_failed", None)
-        st.rerun()
-    if st.session_state.pop("latest_data_refresh_notice", False):
+    if not new_view:
+        st.divider()
+        st.caption(f"Prices as of **{as_of.date()}**  \nUpdated {fetched_at:%d %b %Y, %H:%M} IST  \n" +
+                   ("Refreshed automatically every weekday evening (~5 pm IST)" if mode == "saved"
+                    else f"Live calculation - refreshes every {CACHE_HOURS} hours"))
+        if st.button("🔄 Reload latest data", use_container_width=True, key="reload_sidebar"):
+            reload_latest_data()
+
+if st.session_state.pop("latest_data_refresh_notice", False):
+    notice_panel = st.container() if new_view else st.sidebar
+    with notice_panel:
         if remote_data_error is None and mode == "saved":
             st.success("Loaded the latest scan files from GitHub.")
         elif remote_data_error is not None:
             st.error("GitHub refresh failed; the app is showing its deployed copy if available.")
         else:
             st.info("No saved scan was loaded; the app is calculating data live.")
+
+if new_view:
+    ui.inject_css(font, hide_sidebar=True)
 
 # ---------------- Apply filters ----------------
 df = result
@@ -299,18 +358,7 @@ if momentum_ready:
 else:
     momentum_candidates = df.iloc[0:0].copy()
 
-# ---------------- Header + KPI cards ----------------
-ui.hero("MarketPulse 750",
-        "Relative-strength ranking, Minervini Trend Template, VCP setups, volume breakouts, Weinstein "
-        "stages, market breadth and sector strength across the Nifty Total Market (Nifty 500 + Microcap 250).",
-        [f"<b>As of</b> {as_of:%d %b %Y}", f"<b>Updated</b> {fetched_at:%d %b, %H:%M} IST",
-         f"<b>{len(result)}</b> of {n_universe} stocks rated", f"<b>{n_liquid}</b> liquid",
-         f"<b>Market breadth</b> {market_context['market_state']}"],
-        eyebrow="Nifty Total Market · Momentum & relative strength")
-age_days = (datetime.now(IST).date() - as_of.date()).days
-if mode == "saved" and age_days > 4:
-    st.warning(f"⚠️ This data is from {as_of:%d %b %Y} ({age_days} days ago). The daily job may have "
-               f"stopped - open your GitHub repository's **Actions** tab to check.")
+# ---------------- KPI cards ----------------
 ui.kpis([
     ("Top picks", len(top), f"RS ≥ {pref_rs} + trend + RS line", "#10b981"),
     ("Trend Template", len(tt), "all 8 conditions", "#6366f1"),
