@@ -33,14 +33,11 @@ LIQ_TEXT = f"avg {m.LIQUIDITY_DAYS}-day traded value ≥ ₹{m.MIN_TRADED_VALUE_
 
 st.set_page_config(page_title="MarketPulse 750", page_icon="📈", layout="wide")
 
-# Keep the wider, sidebar-free layout as the sole view.
-new_view = True
-
 # Inject a stylesheet early so loading messages are themed too. The user-selected
 # font and density are restored from session state and controls appear in Settings.
 font = st.session_state.get("appearance_font", list(ui.FONTS)[0])
 density = st.session_state.get("appearance_density", "Comfortable")
-ui.inject_css(font, hide_sidebar=new_view)
+ui.inject_css(font, hide_sidebar=True)
 
 
 # ---------------- Data loading (cached, shared by all visitors) ----------------
@@ -155,18 +152,20 @@ def reload_latest_data():
     st.rerun()
 
 
-if new_view:
-    update_col, settings_col, refresh_col = st.columns([4, 0.7, 1.4], vertical_alignment="center")
+with st.container(key="data_toolbar"):
+    update_col, settings_col, refresh_col = st.columns([4.3, 1.1, 1.5], vertical_alignment="center")
     with update_col:
-        st.caption(
-            f"Prices as of **{as_of.date()}** · Updated {fetched_at:%d %b %Y, %H:%M} IST · "
-            + ("Auto-refreshed on weekdays around 5 pm IST" if mode == "saved"
-               else f"Live data · refreshes every {CACHE_HOURS} hours")
+        st.markdown(
+            f'<div class="data-status"><span class="desktop-status">Prices as of {as_of:%Y-%m-%d} '
+            f'· Updated {fetched_at:%d %b %Y, %H:%M} IST</span>'
+            f'<span class="mobile-status">Prices {as_of:%d %b} · Updated {fetched_at:%H:%M} IST</span></div>',
+            unsafe_allow_html=True,
         )
     with settings_col:
-        filter_panel = st.popover("⚙️", help="Open appearance and stock filters")
+        filter_panel = st.popover("⚙ Settings", help="Appearance and stock filters")
     with refresh_col:
-        if st.button("🔄 Reload latest data", key="reload_main", use_container_width=True):
+        if st.button("↻ Refresh", key="reload_main", use_container_width=True,
+                     help="Load the latest scan data"):
             reload_latest_data()
 
 ui.hero("MarketPulse 750",
@@ -181,20 +180,18 @@ if mode == "saved" and age_days > 4:
     st.warning(f"⚠️ This data is from {as_of:%d %b %Y} ({age_days} days ago). The daily job may have "
                f"stopped - open your GitHub repository's **Actions** tab to check.")
 
-# ---------------- Sidebar filters ----------------
+# ---------------- Appearance and filters ----------------
 custom_rules = []
 with filter_panel:
-    appearance_panel = st.container() if new_view else st.expander("🎨 Appearance", expanded=False)
-    with appearance_panel:
-        if new_view:
-            st.markdown("**Appearance**")
-        font = st.selectbox("Font", list(ui.FONTS), index=0, key="appearance_font")
-        density = st.radio("Table density", ["Comfortable", "Compact"], horizontal=True,
-                           key="appearance_density")
-        st.caption("Light / dark: open the ⋮ menu (top right) → Settings → Theme. "
-                   "The app follows your device by default.")
-    if new_view:
-        st.divider()
+    st.markdown("**Appearance**")
+    font = st.selectbox("Font", list(ui.FONTS), index=0, key="appearance_font")
+    density = st.radio("Table density", ["Comfortable", "Compact"], horizontal=True,
+                       key="appearance_density")
+    st.caption("Light / dark: open the ⋮ menu (top right) → Settings → Theme. "
+               "The app follows your device by default.")
+    st.caption("Auto refresh: weekdays around 5 pm IST." if mode == "saved"
+               else f"Live calculation: refreshes every {CACHE_HOURS} hours.")
+    st.divider()
     st.subheader("Filters")
     liquid_only = st.toggle("Liquid stocks only", value=False, key="filter_liquid_only",
                             help=f"Liquid = {LIQ_TEXT}. Applies to the stock lists. Breadth and sector "
@@ -234,63 +231,50 @@ with filter_panel:
         and pd.api.types.is_numeric_dtype(result[field].dtype)
         and not pd.api.types.is_bool_dtype(result[field].dtype)
     }
-    custom_builder_panel = st.container() if new_view else st.expander("🧰 Custom screen builder", expanded=False)
-    with custom_builder_panel:
-        if new_view:
-            st.markdown("**🧰 Custom screen builder**")
-        picked_metrics = st.multiselect(
-            "Add numeric conditions",
-            list(metric_options),
-            max_selections=3,
-            key="custom_screen_metrics",
-            help="Choose up to three numeric fields. Conditions combine with AND.",
+    st.markdown("**🧰 Custom screen builder**")
+    picked_metrics = st.multiselect(
+        "Add numeric conditions",
+        list(metric_options),
+        max_selections=3,
+        key="custom_screen_metrics",
+        help="Choose up to three numeric fields. Conditions combine with AND.",
+    )
+    if picked_metrics:
+        st.caption("All selected conditions must match. These rules affect stock-list screens only.")
+    for option in picked_metrics:
+        field = metric_options[option]
+        values = pd.to_numeric(result[field], errors="coerce").dropna()
+        if values.empty:
+            continue
+        low, high = float(values.min()), float(values.max())
+        step = max(0.1, (high - low) / 100)
+        middle = float(values.median())
+        q25, q75 = float(values.quantile(.25)), float(values.quantile(.75))
+        st.markdown(f"**{ui.SPEC[field]['t']}**")
+        operator = st.selectbox(
+            "Condition", ["At least", "At most", "Between"],
+            key=f"custom_operator_{field}",
         )
-        if picked_metrics:
-            st.caption("All selected conditions must match. These rules affect stock-list screens only.")
-        for option in picked_metrics:
-            field = metric_options[option]
-            values = pd.to_numeric(result[field], errors="coerce").dropna()
-            if values.empty:
-                continue
-            low, high = float(values.min()), float(values.max())
-            step = max(0.1, (high - low) / 100)
-            middle = float(values.median())
-            q25, q75 = float(values.quantile(.25)), float(values.quantile(.75))
-            st.markdown(f"**{ui.SPEC[field]['t']}**")
-            operator = st.selectbox(
-                "Condition", ["At least", "At most", "Between"],
-                key=f"custom_operator_{field}",
-            )
-            if operator == "Between":
-                lower = st.number_input("From", value=q25, step=step, format="%.2f",
-                                        key=f"custom_lower_{field}")
-                upper = st.number_input("To", value=q75, step=step, format="%.2f",
-                                        key=f"custom_upper_{field}")
-                custom_rules.append((field, operator, lower, upper))
-            else:
-                threshold = st.number_input("Value", value=middle, step=step, format="%.2f",
-                                            key=f"custom_value_{field}")
-                custom_rules.append((field, operator, threshold, None))
-    if not new_view:
-        st.divider()
-        st.caption(f"Prices as of **{as_of.date()}**  \nUpdated {fetched_at:%d %b %Y, %H:%M} IST  \n" +
-                   ("Refreshed automatically every weekday evening (~5 pm IST)" if mode == "saved"
-                    else f"Live calculation - refreshes every {CACHE_HOURS} hours"))
-        if st.button("🔄 Reload latest data", use_container_width=True, key="reload_sidebar"):
-            reload_latest_data()
+        if operator == "Between":
+            lower = st.number_input("From", value=q25, step=step, format="%.2f",
+                                    key=f"custom_lower_{field}")
+            upper = st.number_input("To", value=q75, step=step, format="%.2f",
+                                    key=f"custom_upper_{field}")
+            custom_rules.append((field, operator, lower, upper))
+        else:
+            threshold = st.number_input("Value", value=middle, step=step, format="%.2f",
+                                        key=f"custom_value_{field}")
+            custom_rules.append((field, operator, threshold, None))
 
 if st.session_state.pop("latest_data_refresh_notice", False):
-    notice_panel = st.container() if new_view else st.sidebar
-    with notice_panel:
-        if remote_data_error is None and mode == "saved":
-            st.success("Loaded the latest scan files from GitHub.")
-        elif remote_data_error is not None:
-            st.error("GitHub refresh failed; the app is showing its deployed copy if available.")
-        else:
-            st.info("No saved scan was loaded; the app is calculating data live.")
+    if remote_data_error is None and mode == "saved":
+        st.toast("Latest scan data loaded from GitHub.", icon="✅")
+    elif remote_data_error is not None:
+        st.toast("GitHub refresh failed; showing the deployed copy if available.", icon="⚠️")
+    else:
+        st.toast("No saved scan found; calculating data live.", icon="ℹ️")
 
-if new_view:
-    ui.inject_css(font, hide_sidebar=True)
+ui.inject_css(font, hide_sidebar=True)
 
 # ---------------- Apply filters ----------------
 df = result
@@ -561,7 +545,7 @@ def rotation_chart(rotation, group_title):
 def show_breadth_and_sectors():
     b = m.market_breadth(result)
     ui.note(f"Every figure on this tab uses <b>liquid stocks only</b> ({LIQ_TEXT}): "
-            f"<b>{b['stocks']}</b> of {len(result)} rated stocks. Sidebar filters don't apply here.")
+            f"<b>{b['stocks']}</b> of {len(result)} rated stocks. Stock filters don't apply here.")
     ui.adv_dec(b["advancers"], b["decliners"], b["unchanged"])
     ui.kpis([
         ("52-week highs", b["new_52w_highs"], "closing basis", "#10b981"),
@@ -649,7 +633,7 @@ SCREEN_DESCRIPTIONS = {
     "bases": "Early sideways bases around a flat long-term moving average.",
     "blue_dot": "Stocks whose relative-strength line leads price to a 52-week high.",
     "market": "Market participation, group strength, and the new rotation map.",
-    "all": "The full rated universe, with the current sidebar filters applied.",
+    "all": "The full rated universe, with current Settings & Filters selections applied.",
     "guide": "Definitions and a practical workflow for reading scanner results.",
 }
 with st.container(border=True):
@@ -882,7 +866,7 @@ else:
         st.markdown("""<div class="guide-card"><h4>Keep the first pass broad</h4>
         <p>Start with the symbol/company search, sector filter and a modest minimum RS. Then narrow to liquid
         stocks or raise the RS threshold if the list is still large. Use <b>Custom screen builder</b> in the
-        sidebar to add up to three numeric conditions. Filters affect stock-list screens; the
+        ⚙ <b>Settings &amp; Filters</b> menu to add up to three numeric conditions. Filters affect stock-list screens; the
         Breadth & sectors calculations use the liquid universe independently.</p></div>""", unsafe_allow_html=True)
     with f2:
         st.markdown("""<div class="guide-card"><h4>Open details, then the chart</h4>
