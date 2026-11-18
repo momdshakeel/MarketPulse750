@@ -108,6 +108,7 @@ div[data-baseweb="select"]>div,.stTextInput input{border-radius:10px!important}
 .screen-info .description{font-size:.82rem;line-height:1.4;opacity:.7}
 div[data-testid="stSelectbox"] label{font-size:.76rem!important;font-weight:700!important;letter-spacing:.02em}
 div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!important}
+div.st-key-app_layout{display:flex;justify-content:flex-end}
 @media (max-width:900px){.sub{max-width:100%}.kpis{grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:9px}}
 @media (max-width:640px){
   .block-container{padding-top:2.8rem!important;padding-bottom:2rem!important;padding-left:.7rem!important;padding-right:.7rem!important}
@@ -136,10 +137,12 @@ div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!impor
 """
 
 
-def inject_css(font: str) -> None:
+def inject_css(font: str, hide_sidebar: bool = False) -> None:
     css = (_PAGE_CSS
            .replace("__IMPORT__", f"@import url('{font_url(font)}');" if font_url(font) else "")
            .replace("__FAMILY__", font_family(font)))
+    if hide_sidebar:
+        css = css.replace("</style>", "section[data-testid='stSidebar'],button[data-testid='stSidebarCollapsedControl'],div[data-testid='stSidebarCollapsedControl']{display:none!important}</style>")
     st.markdown(css, unsafe_allow_html=True)
 
 
