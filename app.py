@@ -347,8 +347,15 @@ def choose_table_columns(frame, defaults, key, label="Visible columns"):
     available = [c for c in frame.columns if c in ui.SPEC]
     default_keys = [c for c in defaults if c in available]
     state_key = f"visible_columns_{key}"
+    migration_key = f"daily_change_column_migrated_{key}"
     if state_key not in st.session_state:
         st.session_state[state_key] = default_keys
+    elif not st.session_state.get(migration_key, False):
+        # Add the new default daily-change column to existing sessions while
+        # preserving each user's other column selections.
+        if "Chg_1D_%" in default_keys and "Chg_1D_%" not in st.session_state[state_key]:
+            st.session_state[state_key] = [*st.session_state[state_key], "Chg_1D_%"]
+    st.session_state[migration_key] = True
     with st.expander("⚙️ Customize columns", expanded=False):
         selected = st.multiselect(
             label,
@@ -677,7 +684,7 @@ elif active_screen == "momentum":
         if momentum_market_ok:
             st.markdown(f"**{len(momentum_candidates)} candidates** · closest to pivot first")
             defaults = ["Symbol", "RS_Rating", "Pct_To_Pivot", "Pct_From_52W_High",
-                        "Pct_Above_50SMA", "Base_Depth_%", "RS_Line_New_High",
+                        "Pct_Above_50SMA", "Base_Depth_%", "Chg_1D_%", "RS_Line_New_High",
                         "RS_Line_Near_High", "Up_Down_Vol_Ratio_20D", "Sector"]
             visible = choose_table_columns(momentum_candidates, defaults, "momentum_candidates")
             if visible:
