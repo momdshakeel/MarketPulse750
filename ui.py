@@ -209,6 +209,7 @@ SPEC = {
     "RS_Blue_Dot": dict(t="Blue dot", type="dot", pri=3),
     "RSI14": dict(t="RSI", type="n1", pri=2),
     "Close": dict(t="Close", type="n2", pri=1),
+    "Chg_1D_%": dict(t="1D change %", type="spct", pri=1),
     "Pct_From_52W_High": dict(t="From 52W high", type="pct", pri=2),
     "Pct_Above_50SMA": dict(t="Above 50 SMA", type="pct", pri=2),
     "Extension_State": dict(t="Extension", type="text", pri=3),
@@ -254,10 +255,10 @@ COLS_DEFAULT = ["Symbol", "Trend_State", "Company Name", "Sector", "Sector_Rank"
                 "Sector_Strength", "RS_Excess_3M_%", "RS_Excess_6M_%", "RS_Improving", "RS_Change",
                 "Stage", "TT_Score",
                 "Volume_Pressure_20D", "Up_Down_Vol_Ratio_20D", "Pct_Above_50SMA", "Extension_State",
-                "Liquid", "Avg_Value_Cr", "Market_Cap_Cr", "RS_Line_New_High", "RS_Blue_Dot", "RSI14", "Close",
+                "Liquid", "Avg_Value_Cr", "Market_Cap_Cr", "RS_Line_New_High", "RS_Blue_Dot", "RSI14", "Close", "Chg_1D_%",
                 "Pct_From_52W_High", "Pct_Above_52W_Low", "Weighted_Return_%"]
 COLS_PATTERN = ["Symbol", "RS_Rating", "Stage", "TT_Score", "VCP", "VCP_Contractions", "Vol_Dry_Up",
-                "VCP_Setup", "Pivot", "Pct_To_Pivot", "Close", "Vol_Breakout", "Breakout_Days_Ago",
+                "VCP_Setup", "Pivot", "Pct_To_Pivot", "Close", "Chg_1D_%", "Vol_Breakout", "Breakout_Days_Ago",
                 "Breakout_Vol_x", "Vol_x_50d", "Stage1_Base", "Base_Days", "Base_Depth_%", "Liquid",
                 "Avg_Value_Cr", "Market_Cap_Cr", "Sector", "Company Name"]
 COLS_SECTOR_STRENGTH = ["Rank", "Group", "Sector_Score", "Stocks", "Median_RS", "Avg_RS", "Avg_RS_Change",
