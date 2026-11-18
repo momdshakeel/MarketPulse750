@@ -108,6 +108,10 @@ div[data-baseweb="select"]>div,.stTextInput input{border-radius:10px!important}
 .screen-info .description{font-size:.82rem;line-height:1.4;opacity:.7}
 div[data-testid="stSelectbox"] label{font-size:.76rem!important;font-weight:700!important;letter-spacing:.02em}
 div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!important}
+.data-status{font-size:.82rem;line-height:1.35;opacity:.72;padding:7px 0}
+.mobile-status{display:none}
+.st-key-data_toolbar [data-testid="stHorizontalBlock"]{align-items:center!important;gap:10px!important}
+.st-key-data_toolbar [data-testid="stPopover"] button,.st-key-data_toolbar [data-testid="stButton"] button{min-height:40px}
 @media (max-width:900px){.sub{max-width:100%}.kpis{grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:9px}}
 @media (max-width:640px){
   .block-container{padding-top:2.8rem!important;padding-bottom:2rem!important;padding-left:.7rem!important;padding-right:.7rem!important}
@@ -118,6 +122,12 @@ div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!impor
   .kpi{padding:11px 10px 10px 14px;border-radius:11px}.kpi:before{width:4px}
   .kpi:hover{transform:none}
   .kpi .v{font-size:1.45rem}.kpi .s{font-size:.68rem;line-height:1.25}
+  .desktop-status{display:none}.mobile-status{display:inline}
+  .st-key-data_toolbar [data-testid="stHorizontalBlock"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  .st-key-data_toolbar [data-testid="stHorizontalBlock"]>div[data-testid="stColumn"]{width:100%!important;min-width:0!important;flex:none!important}
+  .st-key-data_toolbar [data-testid="stHorizontalBlock"]>div[data-testid="stColumn"]:first-child{grid-column:1/-1!important}
+  .st-key-data_toolbar [data-testid="stPopover"] button,.st-key-data_toolbar [data-testid="stButton"] button{width:100%!important;min-height:42px;padding-left:7px!important;padding-right:7px!important}
+  .chip-date{display:none}
   [role="tablist"]{gap:6px!important;padding-bottom:8px}
   [role="tablist"] [role="tab"]{padding:7px 12px!important}
   [role="tablist"] [role="tab"] p{font-size:.82rem}
@@ -146,7 +156,11 @@ def inject_css(font: str, hide_sidebar: bool = False) -> None:
 
 
 def hero(title: str, subtitle: str, chips: list, eyebrow: str = "MarketPulse 750 · Nifty Total Market") -> None:
-    chip_html = "".join(f'<span class="chip">{c}</span>' for c in chips)
+    chip_parts = []
+    for chip in chips:
+        chip_class = "chip chip-date" if chip.startswith(("<b>As of</b>", "<b>Updated</b>")) else "chip"
+        chip_parts.append(f'<span class="{chip_class}">{chip}</span>')
+    chip_html = "".join(chip_parts)
     st.markdown(
         f'<div class="hero"><div><div class="eyebrow">{eyebrow}</div>'
         f'<div class="title">{title}</div><div class="sub">{subtitle}</div></div>'
