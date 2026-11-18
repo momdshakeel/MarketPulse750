@@ -108,7 +108,6 @@ div[data-baseweb="select"]>div,.stTextInput input{border-radius:10px!important}
 .screen-info .description{font-size:.82rem;line-height:1.4;opacity:.7}
 div[data-testid="stSelectbox"] label{font-size:.76rem!important;font-weight:700!important;letter-spacing:.02em}
 div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!important}
-div.st-key-app_layout{display:flex;justify-content:flex-end}
 @media (max-width:900px){.sub{max-width:100%}.kpis{grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:9px}}
 @media (max-width:640px){
   .block-container{padding-top:2.8rem!important;padding-bottom:2rem!important;padding-left:.7rem!important;padding-right:.7rem!important}
