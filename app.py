@@ -36,11 +36,19 @@ st.set_page_config(page_title="MarketPulse 750", page_icon="📈", layout="wide"
 # ---------------- Layout switch ----------------
 st.session_state.setdefault("app_layout", "Old view")
 layout_spacer, layout_switch = st.columns([5, 3])
+current_layout = st.session_state["app_layout"]
+next_layout = "New view" if current_layout == "Old view" else "Old view"
 with layout_switch:
-    st.segmented_control(
-        "App layout", ["Old view", "New view"], key="app_layout",
-        label_visibility="collapsed", help="Switch between the classic sidebar and the wider main-page controls.",
-    )
+    switch_col, current_col = st.columns([1.7, 1])
+    with switch_col:
+        if st.button(next_layout, key="layout_switch_button", use_container_width=True,
+                     help=f"Switch from {current_layout} to {next_layout}."):
+            st.session_state["app_layout"] = next_layout
+            if next_layout == "New view":
+                st.session_state["open_settings_on_new_view"] = True
+            st.rerun()
+    with current_col:
+        st.caption(current_layout)
 new_view = st.session_state["app_layout"] == "New view"
 
 # Inject a stylesheet early so loading messages are themed too. The user-selected
@@ -188,7 +196,8 @@ if mode == "saved" and age_days > 4:
 
 # ---------------- Sidebar filters ----------------
 custom_rules = []
-filter_panel = st.expander("⚙️ Settings & Filters", expanded=False) if new_view else st.sidebar
+settings_expanded = st.session_state.pop("open_settings_on_new_view", False)
+filter_panel = st.expander("⚙️ Settings & Filters", expanded=settings_expanded) if new_view else st.sidebar
 with filter_panel:
     appearance_panel = st.container() if new_view else st.expander("🎨 Appearance", expanded=False)
     with appearance_panel:
