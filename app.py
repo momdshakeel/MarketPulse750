@@ -33,23 +33,8 @@ LIQ_TEXT = f"avg {m.LIQUIDITY_DAYS}-day traded value ≥ ₹{m.MIN_TRADED_VALUE_
 
 st.set_page_config(page_title="MarketPulse 750", page_icon="📈", layout="wide")
 
-# ---------------- Layout switch ----------------
-st.session_state.setdefault("app_layout", "Old view")
-layout_spacer, layout_switch = st.columns([5, 3])
-current_layout = st.session_state["app_layout"]
-next_layout = "New view" if current_layout == "Old view" else "Old view"
-with layout_switch:
-    switch_col, current_col = st.columns([1.7, 1])
-    with switch_col:
-        if st.button(next_layout, key="layout_switch_button", use_container_width=True,
-                     help=f"Switch from {current_layout} to {next_layout}."):
-            st.session_state["app_layout"] = next_layout
-            if next_layout == "New view":
-                st.session_state["open_settings_on_new_view"] = True
-            st.rerun()
-    with current_col:
-        st.caption(current_layout)
-new_view = st.session_state["app_layout"] == "New view"
+# Keep the wider, sidebar-free layout as the sole view.
+new_view = True
 
 # Inject a stylesheet early so loading messages are themed too. The user-selected
 # font and density are restored from session state and controls appear in Settings.
@@ -171,13 +156,15 @@ def reload_latest_data():
 
 
 if new_view:
-    update_col, refresh_col = st.columns([4, 1.4], vertical_alignment="center")
+    update_col, settings_col, refresh_col = st.columns([4, 0.7, 1.4], vertical_alignment="center")
     with update_col:
         st.caption(
             f"Prices as of **{as_of.date()}** · Updated {fetched_at:%d %b %Y, %H:%M} IST · "
             + ("Auto-refreshed on weekdays around 5 pm IST" if mode == "saved"
                else f"Live data · refreshes every {CACHE_HOURS} hours")
         )
+    with settings_col:
+        filter_panel = st.popover("⚙️", help="Open appearance and stock filters")
     with refresh_col:
         if st.button("🔄 Reload latest data", key="reload_main", use_container_width=True):
             reload_latest_data()
@@ -196,8 +183,6 @@ if mode == "saved" and age_days > 4:
 
 # ---------------- Sidebar filters ----------------
 custom_rules = []
-settings_expanded = st.session_state.pop("open_settings_on_new_view", False)
-filter_panel = st.expander("⚙️ Settings & Filters", expanded=settings_expanded) if new_view else st.sidebar
 with filter_panel:
     appearance_panel = st.container() if new_view else st.expander("🎨 Appearance", expanded=False)
     with appearance_panel:
