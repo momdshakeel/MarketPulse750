@@ -9,13 +9,13 @@ for relative strength, momentum, and classic trend / pattern setups. Educational
 - **Minervini Trend Template:** the 8 conditions, plus RS-line new highs, RS "blue dot" and RSI.
 - **Weinstein stages (1-4)**, sideways **bases**, **VCP setups** and **volume breakouts**.
 - **Liquidity:** average daily traded value (close x volume) over 20 sessions; liquid = at least Rs 10 crore.
-  A sidebar switch limits the stock lists to liquid stocks.
+  The Settings & Filters menu can limit stock lists to liquid stocks.
 - **Market-cap filter:** shares outstanding x latest close, in Rs crore.
 - **Breadth and sector strength** (liquid stocks only): advancers / decliners, 52-week highs and lows, share of
   stocks above the 50 / 150 / 200-day averages, Stage 2 and Trend Template shares, and a sector ranking.
 - Sortable, responsive tables, font choice, light / dark mode, CSV downloads.
-- A top-right **Old view / New view** switch keeps the classic sidebar available and offers a wider,
-  sidebar-free layout with appearance and filter controls in the main page.
+- A responsive, sidebar-free layout places **Settings & Filters** and **Refresh** beside the data status on desktop,
+  then arranges them as compact, side-by-side controls on mobile.
 - **Momentum Candidates:** a staged screen requiring a supportive benchmark (above its 10- and 20-day averages),
   price within 25% of its 52-week high and above its 50-day average, a base no deeper than 20%, a pivot within
   10%, and an RS line within 5% of its 52-week high. First-leg quality, 10/20-day base support, heavy-volume
@@ -68,7 +68,7 @@ data/                          created by the daily job - do not edit by hand
 | Job fails on "Save the results" with a permission error | Settings -> Actions -> General -> Workflow permissions -> Read and write |
 | Job fails: "Yahoo returned too little data" | Yahoo was throttling; run the job again later |
 | App says "calculating live" | `data/latest.csv` is missing - run the Daily scan job, then reboot the app |
-| App shows an old date | Click **Reload latest data** in the sidebar, or reboot the app from Streamlit's menu |
+| App shows an old date | Click **Refresh** beside the data status, or reboot the app from Streamlit's menu |
 
 ## Method notes
 
