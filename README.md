@@ -14,6 +14,8 @@ for relative strength, momentum, and classic trend / pattern setups. Educational
 - **Breadth and sector strength** (liquid stocks only): advancers / decliners, 52-week highs and lows, share of
   stocks above the 50 / 150 / 200-day averages, Stage 2 and Trend Template shares, and a sector ranking.
 - Sortable, responsive tables, font choice, light / dark mode, CSV downloads.
+- A top-right **Old view / New view** switch keeps the classic sidebar available and offers a wider,
+  sidebar-free layout with appearance and filter controls in the main page.
 - **Momentum Candidates:** a staged screen requiring a supportive benchmark (above its 10- and 20-day averages),
   price within 25% of its 52-week high and above its 50-day average, a base no deeper than 20%, a pivot within
   10%, and an RS line within 5% of its 52-week high. First-leg quality, 10/20-day base support, heavy-volume
