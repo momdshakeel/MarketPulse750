@@ -611,7 +611,7 @@ def build_table(prices, bench, meta, ohlcv=None, shares=None):
              "Volume_Pressure_20D", "Up_Down_Vol_Ratio_20D", "Pct_Above_50SMA", "Extension_State",
              "Weighted_Return_%", "Stage", "TT_Score", "TT_Pass", "Stage1_Base", "VCP",
              "VCP_Setup", "Vol_Breakout", "Liquid", "Avg_Value_Cr", "Market_Cap_Cr", "RS_Line_New_High", "RS_Line_Near_High",
-             "RS_Blue_Dot", "RS_Line_Uptrend", "RSI14", "Close", "Pct_From_52W_High",
+             "RS_Blue_Dot", "RS_Line_Uptrend", "RSI14", "Close", "Chg_1D_%", "Pct_From_52W_High",
              "Pct_Above_52W_Low", "SMA50", "SMA150", "SMA200", "Market_Above_10SMA",
              "Market_Above_20SMA", "Market_Trend_OK"]
     front = [c for c in front if c in out.columns]
