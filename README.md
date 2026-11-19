@@ -24,7 +24,7 @@ for relative strength, momentum, and classic trend / pattern setups. Educational
 ## How it works
 
 ```
-GitHub Actions (weekdays ~5 pm IST)  ->  build_data.py  ->  data/latest.csv + meta.json + shares.csv
+GitHub Actions (weekdays ~5 pm IST)  ->  build_data.py  ->  latest scan + 30-day setup history
                                                                   |
                                       Streamlit app (app.py) reads data/  ->  opens in seconds
 ```
@@ -32,6 +32,9 @@ GitHub Actions (weekdays ~5 pm IST)  ->  build_data.py  ->  data/latest.csv + me
 The heavy work (downloading prices from Yahoo Finance and calculating everything) happens once a day in a free
 GitHub job. The app only reads the saved results, so visitors never wait and Yahoo is never called from the web server.
 If `data/latest.csv` does not exist yet, the app falls back to calculating live (3-5 minutes).
+For the VCP and Breakouts screens, the daily workflow also archives one full scan per market date under
+`data/history/` and removes snapshots older than 30 calendar days. Their date selector applies the existing
+sidebar filters to the chosen snapshot; the dashboard header and summary cards continue to show the latest scan.
 
 ## Repository layout
 
@@ -40,10 +43,12 @@ app.py                         the Streamlit app
 ui.py                          look and feel (fonts, cards, tables)
 nse500_rs_rating.py            all calculations
 build_data.py                  the daily job
+archive_scan.py                save a dated snapshot and prune history to 30 days
 requirements.txt               Python packages for the app
 .github/workflows/daily_scan.yml   the schedule (GitHub Actions)
 .streamlit/config.toml         optional theme colour
 data/                          created by the daily job - do not edit by hand
+data/history/                  dated scan snapshots used by VCP / Breakouts history
 ```
 
 ## Setup (first time)
