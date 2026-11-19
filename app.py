@@ -489,7 +489,8 @@ def stock_strength_map(frame, key):
                "today’s volume relative to its 50-day average. Hover or tap a bubble for details.")
 
 
-def show(frame, name, text, keys=None, sort=("RS_Rating", -1), titles=None, scan_date=None):
+def show(frame, name, text, keys=None, sort=("RS_Rating", -1), titles=None, scan_date=None,
+         history_dates=None, history_key=None):
     ui.note(f"<b>{len(frame)}</b> stocks · {text}")
     if custom_rules:
         rule_labels = []
@@ -512,6 +513,16 @@ def show(frame, name, text, keys=None, sort=("RS_Rating", -1), titles=None, scan
                      search_keys=["Symbol", "Company Name"], market_context=market_context)
         else:
             st.info("Select at least one column to display this table.")
+    if history_dates:
+        selected_date = st.selectbox(
+            "As of scan date",
+            history_dates,
+            index=history_dates.index(scan_date) if scan_date in history_dates else 0,
+            key=history_key,
+            format_func=lambda value: f"Scan ({datetime.fromisoformat(value).strftime('%a, %d %b %Y')})",
+            help="History is retained for the most recent 30 calendar days. Sidebar filters are applied to the selected scan.",
+        )
+        st.caption(f"Results above use the {selected_date} scan. Header metrics still show the latest scan.")
     if not frame.empty:
         st.download_button("⬇️ Download CSV", frame.to_csv(index=False).encode("utf-8"),
                            file_name=f"totalmarket_{name}_{scan_date or as_of.date()}.csv", mime="text/csv",
@@ -519,34 +530,29 @@ def show(frame, name, text, keys=None, sort=("RS_Rating", -1), titles=None, scan
 
 
 def select_setup_scan(screen_key):
-    """Offer dated snapshots for the VCP/breakout pilot; fall back to latest scan."""
+    """Choose the stored date from session state and load its snapshot."""
+    state_key = f"setup_scan_date_{screen_key}"
     try:
         refresh_token = st.session_state.get("data_refresh_token", "initial")
         scans = load_scan_history_index(refresh_token)
     except Exception as error:
         st.warning(f"Could not load scan history ({error}). Showing the latest scan instead.")
-        return df, None
+        return df, None, [], state_key
 
     dates = [str(item.get("date", "")) for item in scans if item.get("date")]
     if not dates:
         st.info("No archived scans yet. A date selector will appear after the next successful Daily scan; showing the latest scan for now.")
-        return df, None
-
-    selected_date = st.selectbox(
-        "As of scan date",
-        dates,
-        index=0,
-        key=f"setup_scan_date_{screen_key}",
-        format_func=lambda value: f"Scan ({datetime.fromisoformat(value).strftime('%a, %d %b %Y')})",
-        help="History is retained for the most recent 30 calendar days. Sidebar filters are applied to the selected scan.",
-    )
-    st.caption("VCP and breakout results below use this scan date. Header metrics still show the latest scan.")
+        return df, None, [], state_key
+    selected_date = st.session_state.get(state_key, dates[0])
+    if selected_date not in dates:
+        selected_date = dates[0]
+        st.session_state[state_key] = selected_date
     try:
         snapshot = load_scan_history(selected_date, refresh_token)
-        return apply_stock_filters(snapshot), selected_date
+        return apply_stock_filters(snapshot), selected_date, dates, state_key
     except Exception as error:
         st.error(f"Could not load the {selected_date} scan ({error}). Showing the latest scan instead.")
-        return df, None
+        return df, None, [], state_key
 
 
 def rotation_chart(rotation, group_title):
@@ -780,7 +786,7 @@ elif active_screen == "trend":
                                "200 SMA rising, 30% above the 52-week low, within 25% of the 52-week high, "
                                "RS ≥ 70.")
 elif active_screen == "vcp":
-    scan_frame, selected_scan_date = select_setup_scan("vcp")
+    scan_frame, selected_scan_date, history_dates, history_key = select_setup_scan("vcp")
     historical_vcp = scan_frame[scan_frame.get("VCP_Setup", pd.Series(False, index=scan_frame.index))
                                 .fillna(False).astype(bool)].sort_values("Pct_To_Pivot")
     show(historical_vcp, "vcp_setups",
@@ -788,9 +794,9 @@ elif active_screen == "vcp":
          f"last 10 days (≤ {int(m.VOL_DRYUP_RATIO * 100)}% of the 50-day average) and price "
          f"0-{m.VCP_NEAR_PIVOT:.0f}% below the <b>pivot</b>. Watch for a close above the pivot on heavy "
          "volume. Closest to pivot first.", ui.COLS_PATTERN, ("Pct_To_Pivot", 1),
-         scan_date=selected_scan_date)
+         scan_date=selected_scan_date, history_dates=history_dates, history_key=history_key)
 elif active_screen == "breakouts":
-    scan_frame, selected_scan_date = select_setup_scan("breakouts")
+    scan_frame, selected_scan_date, history_dates, history_key = select_setup_scan("breakouts")
     historical_breakouts = scan_frame[
         scan_frame.get("Vol_Breakout", pd.Series(False, index=scan_frame.index)).fillna(False).astype(bool)
     ].sort_values(["Breakout_Days_Ago", "Breakout_Vol_x"], ascending=[True, False])
@@ -798,7 +804,8 @@ elif active_screen == "breakouts":
          f"Closed above the prior {m.BREAKOUT_LOOKBACK}-session high on <b>≥ {m.BREAKOUT_VOL_X}× the 50-day average "
          f"volume</b> in the last {m.BREAKOUT_RECENT_DAYS} sessions, after a base no deeper than "
          f"{int(m.MAX_BASE_DEPTH * 100)}%, closing in the upper half of the day's range.",
-         ui.COLS_PATTERN, ("Breakout_Days_Ago", 1), scan_date=selected_scan_date)
+         ui.COLS_PATTERN, ("Breakout_Days_Ago", 1), scan_date=selected_scan_date,
+         history_dates=history_dates, history_key=history_key)
 elif active_screen == "bases":
     show(s1, "stage1_bases",
          "<b>Stage 1</b> = price around a flat 150-day (30-week) average after a decline, with a sideways base of "
