@@ -47,31 +47,31 @@ footer{visibility:hidden}
 div[data-testid="stElementContainer"]:has(> div > style),.element-container:has(> style){display:none}
 
 /* hero */
-.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:2px 0 18px;
-padding:20px 22px;border:1px solid var(--line);border-radius:18px;
+.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:2px 0 12px;
+padding:15px 18px;border:1px solid var(--line);border-radius:16px;
 background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 9%,var(--soft)),var(--soft));
-box-shadow:0 8px 24px color-mix(in srgb,currentColor 4%,transparent)}
-.eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;opacity:.6;font-weight:600}
-.title{font-size:clamp(1.7rem,3.4vw,2.6rem);font-weight:700;line-height:1.1;margin:.25rem 0 .4rem;
+box-shadow:0 5px 16px color-mix(in srgb,currentColor 3%,transparent)}
+.eyebrow{font-size:.67rem;letter-spacing:.13em;text-transform:uppercase;opacity:.6;font-weight:600}
+.title{font-size:clamp(1.5rem,2.8vw,2.15rem);font-weight:700;line-height:1.1;margin:.2rem 0 .3rem;
 background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;
 background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
-.sub{opacity:.72;font-size:.95rem;max-width:780px;line-height:1.5}
+.sub{opacity:.72;font-size:.88rem;max-width:900px;line-height:1.42}
 .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.chip{border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:5px 12px;
-font-size:.78rem;white-space:nowrap;backdrop-filter:blur(8px)}
+.chip{border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:4px 10px;
+font-size:.72rem;white-space:nowrap;backdrop-filter:blur(8px)}
 .chip b{font-weight:600}
 
 /* KPI cards */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px;margin:4px 0 20px}
-.kpi{position:relative;overflow:hidden;border-radius:14px;padding:14px 16px 13px 20px;
+.kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px;margin:3px 0 14px}
+.kpi{position:relative;overflow:hidden;border-radius:12px;padding:10px 10px 9px 15px;min-width:0;
 border:1px solid var(--line);background:color-mix(in srgb,var(--soft) 70%,transparent);
 transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
 .kpi:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--kc,var(--accent)) 48%,var(--line));
 box-shadow:0 8px 20px color-mix(in srgb,currentColor 7%,transparent)}
 .kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kc,var(--accent))}
-.kpi .l{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;opacity:.62;font-weight:600}
-.kpi .v{font-size:2rem;font-weight:700;line-height:1.15;letter-spacing:-.02em;margin-top:2px}
-.kpi .s{font-size:.75rem;opacity:.55;margin-top:1px}
+.kpi .l{font-size:.64rem;letter-spacing:.07em;text-transform:uppercase;opacity:.62;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .v{font-size:1.65rem;font-weight:700;line-height:1.1;letter-spacing:-.02em;margin-top:3px}
+.kpi .s{font-size:.68rem;opacity:.58;margin-top:2px;line-height:1.25;min-height:1.7em}
 
 /* tabs as pills (works with old and new Streamlit tab markup) */
 [role="tablist"]{gap:8px!important;overflow-x:auto;border-bottom:none!important;box-shadow:none!important;
@@ -108,16 +108,17 @@ div[data-baseweb="select"]>div,.stTextInput input{border-radius:10px!important}
 .screen-info .description{font-size:.82rem;line-height:1.4;opacity:.7}
 div[data-testid="stSelectbox"] label{font-size:.76rem!important;font-weight:700!important;letter-spacing:.02em}
 div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!important}
-@media (max-width:900px){.sub{max-width:100%}.kpis{grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:9px}}
+@media (max-width:1100px) and (min-width:641px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:900px){.sub{max-width:100%}.kpis{gap:8px}}
 @media (max-width:640px){
   .block-container{padding-top:2.8rem!important;padding-bottom:2rem!important;padding-left:.7rem!important;padding-right:.7rem!important}
-  .hero{align-items:flex-start;gap:10px;margin-bottom:12px;padding:16px 14px;border-radius:14px}.title{font-size:clamp(1.55rem,7vw,2rem)}
-  .sub{font-size:.86rem;line-height:1.42}.chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:6px}
-  .chip{font-size:.7rem;white-space:normal;overflow-wrap:anywhere;padding:5px 8px;text-align:center}
-  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
-  .kpi{padding:11px 10px 10px 14px;border-radius:11px}.kpi:before{width:4px}
+  .hero{align-items:flex-start;gap:8px;margin-bottom:10px;padding:13px 12px;border-radius:13px}.title{font-size:clamp(1.4rem,6vw,1.8rem)}
+  .sub{font-size:.82rem;line-height:1.38}.chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:5px}
+  .chip{font-size:.66rem;white-space:normal;overflow-wrap:anywhere;padding:4px 7px;text-align:center}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:12px}
+  .kpi{padding:9px 9px 8px 13px;border-radius:10px}.kpi:before{width:4px}
   .kpi:hover{transform:none}
-  .kpi .v{font-size:1.45rem}.kpi .s{font-size:.68rem;line-height:1.25}
+  .kpi .l{font-size:.62rem}.kpi .v{font-size:1.35rem}.kpi .s{font-size:.65rem;line-height:1.2;min-height:1.5em}
   [role="tablist"]{gap:6px!important;padding-bottom:8px}
   [role="tablist"] [role="tab"]{padding:7px 12px!important}
   [role="tablist"] [role="tab"] p{font-size:.82rem}
@@ -129,7 +130,7 @@ div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!impor
 }
 @media (max-width:380px){
   .block-container{padding-left:.55rem!important;padding-right:.55rem!important}
-  .kpi .v{font-size:1.3rem}.kpi .l{font-size:.62rem}.kpi .s{font-size:.64rem}
+  .kpi .v{font-size:1.24rem}.kpi .l{font-size:.59rem}.kpi .s{font-size:.62rem}
   .meter .mn{font-size:.65rem}.chip{font-size:.66rem}
 }
 </style>
