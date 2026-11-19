@@ -717,12 +717,13 @@ SCREEN_DESCRIPTIONS = {
 with st.container(border=True):
     screen_picker, screen_summary = st.columns([1.05, 1.35], gap="large", vertical_alignment="center")
     with screen_picker:
-        selected_screen = st.selectbox(
-            "🔎 Screen library · type to search",
-            list(SCREEN_LIBRARY),
-            key="screen_library",
-            help="Search and choose a scanner view. Screens are grouped by purpose.",
-        )
+        with st.container(key="screen-library-control"):
+            selected_screen = st.selectbox(
+                "🔎 Screen library · type to search",
+                list(SCREEN_LIBRARY),
+                key="screen_library",
+                help="Search and choose a scanner view. Screens are grouped by purpose.",
+            )
     active_screen = SCREEN_LIBRARY[selected_screen]
     with screen_summary:
         st.markdown(
