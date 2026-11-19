@@ -47,23 +47,14 @@ footer{visibility:hidden}
 div[data-testid="stElementContainer"]:has(> div > style),.element-container:has(> style){display:none}
 
 /* hero */
-.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:2px 0 12px;
-padding:15px 18px;border:1px solid var(--line);border-radius:16px;
 .hero{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap;margin:1px 0 9px;
 padding:10px 14px;border:1px solid var(--line);border-radius:14px;
 background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 9%,var(--soft)),var(--soft));
-box-shadow:0 5px 16px color-mix(in srgb,currentColor 3%,transparent)}
-.eyebrow{font-size:.67rem;letter-spacing:.13em;text-transform:uppercase;opacity:.6;font-weight:600}
-.title{font-size:clamp(1.5rem,2.8vw,2.15rem);font-weight:700;line-height:1.1;margin:.2rem 0 .3rem;
 box-shadow:0 3px 10px color-mix(in srgb,currentColor 3%,transparent)}
 .eyebrow{font-size:.61rem;letter-spacing:.12em;text-transform:uppercase;opacity:.62;font-weight:650}
 .title{font-size:clamp(1.35rem,2.1vw,1.75rem);font-weight:700;line-height:1.08;margin:.14rem 0 .2rem;
 background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;
 background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
-.sub{opacity:.72;font-size:.88rem;max-width:900px;line-height:1.42}
-.chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.chip{border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:4px 10px;
-font-size:.72rem;white-space:nowrap;backdrop-filter:blur(8px)}
 .sub{opacity:.76;font-size:.79rem;max-width:1000px;line-height:1.32}
 .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start}
 .chip{border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:3px 8px;
@@ -71,18 +62,12 @@ font-size:.66rem;white-space:nowrap;backdrop-filter:blur(8px)}
 .chip b{font-weight:600}
 
 /* KPI cards */
-.kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px;margin:3px 0 14px}
-.kpi{position:relative;overflow:hidden;border-radius:12px;padding:10px 10px 9px 15px;min-width:0;
 .kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin:2px 0 10px}
 .kpi{position:relative;overflow:hidden;border-radius:10px;padding:8px 9px 7px 13px;min-width:0;
 border:1px solid var(--line);background:color-mix(in srgb,var(--soft) 70%,transparent);
 transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
 .kpi:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--kc,var(--accent)) 48%,var(--line));
 box-shadow:0 8px 20px color-mix(in srgb,currentColor 7%,transparent)}
-.kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--kc,var(--accent))}
-.kpi .l{font-size:.64rem;letter-spacing:.07em;text-transform:uppercase;opacity:.62;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kpi .v{font-size:1.65rem;font-weight:700;line-height:1.1;letter-spacing:-.02em;margin-top:3px}
-.kpi .s{font-size:.68rem;opacity:.58;margin-top:2px;line-height:1.25;min-height:1.7em}
 .kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--kc,var(--accent))}
 .kpi .l{font-size:.6rem;letter-spacing:.065em;text-transform:uppercase;opacity:.68;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .v{font-size:1.42rem;font-weight:700;line-height:1.04;letter-spacing:-.02em;margin-top:2px}
@@ -135,18 +120,12 @@ div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!impor
 @media (max-width:900px){.sub{max-width:100%}.kpis{gap:8px}}
 @media (max-width:640px){
   .block-container{padding-top:2.8rem!important;padding-bottom:2rem!important;padding-left:.7rem!important;padding-right:.7rem!important}
-  .hero{align-items:flex-start;gap:8px;margin-bottom:10px;padding:13px 12px;border-radius:13px}.title{font-size:clamp(1.4rem,6vw,1.8rem)}
-  .sub{font-size:.82rem;line-height:1.38}.chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:5px}
-  .chip{font-size:.66rem;white-space:normal;overflow-wrap:anywhere;padding:4px 7px;text-align:center}
-  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:12px}
-  .kpi{padding:9px 9px 8px 13px;border-radius:10px}.kpi:before{width:4px}
   .hero{align-items:flex-start;gap:7px;margin-bottom:8px;padding:10px 10px;border-radius:12px}.title{font-size:clamp(1.28rem,5.2vw,1.6rem)}
   .sub{font-size:.76rem;line-height:1.32}.chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:4px}
   .chip{font-size:.62rem;white-space:normal;overflow-wrap:anywhere;padding:3px 6px;text-align:center}
   .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:9px}
   .kpi{padding:8px 8px 7px 12px;border-radius:9px}.kpi:before{width:3px}
   .kpi:hover{transform:none}
-  .kpi .l{font-size:.62rem}.kpi .v{font-size:1.35rem}.kpi .s{font-size:.65rem;line-height:1.2;min-height:1.5em}
   .kpi .l{font-size:.6rem}.kpi .v{font-size:1.24rem}.kpi .s{font-size:.62rem;line-height:1.15}
   [role="tablist"]{gap:6px!important;padding-bottom:8px}
   [role="tablist"] [role="tab"]{padding:7px 12px!important}
@@ -159,7 +138,6 @@ div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!impor
 }
 @media (max-width:380px){
   .block-container{padding-left:.55rem!important;padding-right:.55rem!important}
-  .kpi .v{font-size:1.24rem}.kpi .l{font-size:.59rem}.kpi .s{font-size:.62rem}
   .kpi .v{font-size:1.16rem}.kpi .l{font-size:.57rem}.kpi .s{font-size:.6rem}
   .meter .mn{font-size:.65rem}.chip{font-size:.66rem}
 }
@@ -187,9 +165,6 @@ def hero(title: str, subtitle: str, chips: list, eyebrow: str = "MarketPulse 750
 def kpis(items: list) -> None:
     """items: (label, value, sub, colour)"""
     cards = "".join(
-        f'<div class="kpi" style="--kc:{c}"><div class="l">{l}</div><div class="v">{v}</div>'
-        f'<div class="s">{s}</div></div>' for l, v, s, c in items)
-    st.markdown(f'<div class="kpis">{cards}</div>', unsafe_allow_html=True)
         f'<div class="kpi" style="flex:1 1 145px;min-width:120px;box-sizing:border-box;'
         f'position:relative;overflow:hidden;border:1px solid rgba(100,116,139,.24);'
         f'border-left:4px solid {c};border-radius:10px;padding:8px 9px 7px;'
