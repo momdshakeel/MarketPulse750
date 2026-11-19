@@ -106,6 +106,14 @@ div[data-baseweb="select"]>div,.stTextInput input{border-radius:10px!important}
 .screen-info .kicker{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;opacity:.55;font-weight:700}
 .screen-info .heading{font-size:1.05rem;font-weight:700;line-height:1.2;margin:3px 0}
 .screen-info .description{font-size:.82rem;line-height:1.4;opacity:.7}
+.st-key-screen-library-control{padding:8px 10px 1px;border-radius:12px;
+background:linear-gradient(110deg,color-mix(in srgb,var(--accent) 10%,var(--soft)),var(--soft));
+border:1px solid color-mix(in srgb,var(--accent) 26%,var(--line))}
+.st-key-screen-library-control [data-baseweb="select"]>div{
+background:color-mix(in srgb,var(--accent) 5%,var(--soft))!important;
+border-color:color-mix(in srgb,var(--accent) 38%,var(--line))!important}
+.st-key-screen-library-control [data-baseweb="select"]:hover>div{
+border-color:color-mix(in srgb,var(--accent) 58%,var(--line))!important}
 div[data-testid="stSelectbox"] label{font-size:.76rem!important;font-weight:700!important;letter-spacing:.02em}
 div[data-testid="stSelectbox"] [data-baseweb="select"]>div{min-height:44px!important}
 @media (max-width:1100px) and (min-width:641px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
