@@ -297,7 +297,7 @@ html.dark{--g:#34d399;--a:#fbbf24;--r:#f87171;--b:#60a5fa}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:13.5px/1.35 var(--ff)}
 .wrap{height:calc(100vh - 48px);overflow:auto;border:1px solid var(--line);border-radius:14px;
-overscroll-behavior:contain;scrollbar-width:thin}
+overscroll-behavior:contain;scrollbar-width:thin;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
 table{border-collapse:separate;border-spacing:0;width:100%;min-width:max-content}
 th{position:sticky;top:0;z-index:3;padding:0 12px;height:42px;text-align:right;white-space:nowrap;cursor:pointer;
 user-select:none;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;
@@ -374,8 +374,7 @@ box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
 background:var(--bg);color:var(--fg);font:inherit;outline:none}
 .searchbar input:focus{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}
 .count{font-size:.82rem;opacity:.65;white-space:nowrap}
-@media (max-width:900px){.p3{display:none}}
-@media (max-width:620px){.p2{display:none}td,th{padding:0 8px}html,body{font-size:12.5px}}
+@media (max-width:620px){td,th{padding:0 8px}html,body{font-size:12.5px}}
 @media (max-width:560px){.overlay{padding:0}.dialog{width:100%;height:100%;max-height:100vh;border:0;border-radius:0;padding:16px 12px}}
 @media (max-width:420px){.searchbar{gap:6px}.searchbar input{font-size:16px;padding:9px}.count{font-size:.72rem}}
 </style></head><body>
