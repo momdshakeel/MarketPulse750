@@ -103,17 +103,8 @@ white-space:nowrap;flex-shrink:0;scroll-snap-align:start;background:var(--soft)!
 section[data-testid="stSidebar"]{border-right:1px solid var(--line)}
 section[data-testid="stSidebar"] h2,section[data-testid="stSidebar"] h3{font-size:1rem;letter-spacing:-.01em}
 .stButton>button,.stDownloadButton>button{border-radius:10px;border:1px solid var(--line);font-weight:600}
-.stButton>button,.stDownloadButton>button{border-radius:10px;border:1px solid var(--line);font-weight:600;transition:border-color .15s ease,box-shadow .15s ease}
-.stButton>button:hover,.stDownloadButton>button:hover{border-color:color-mix(in srgb,var(--accent) 48%,var(--line));box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 10%,transparent)}
 .stDownloadButton>button{background:var(--soft)}
 div[data-baseweb="select"]>div,.stTextInput input{border-radius:10px!important}
-div[data-baseweb="select"]>div:focus-within,.stTextInput input:focus{border-color:var(--accent)!important;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 16%,transparent)!important}
-section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p{font-weight:600;opacity:.88}
-section[data-testid="stSidebar"] [data-testid="stCaptionContainer"]{line-height:1.42}
-section[data-testid="stSidebar"] [data-testid="stExpander"] details{border:1px solid var(--line);border-radius:11px;background:color-mix(in srgb,var(--soft) 80%,transparent)}
-section[data-testid="stSidebar"] [data-testid="stExpander"] summary{font-weight:650}
-.stApp [data-testid="stExpander"] details{border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--soft) 62%,transparent)}
-.stApp [data-testid="stExpander"] summary{font-weight:600}
 .meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:6px 0 18px}
 .meter{border:1px solid var(--line);background:var(--soft);border-radius:14px;padding:12px 15px 11px}
 .meter .mh{display:flex;justify-content:space-between;align-items:baseline;font-size:.8rem;font-weight:600}
@@ -125,20 +116,11 @@ section[data-testid="stSidebar"] [data-testid="stExpander"] summary{font-weight:
 .advdec .a{background:#10b981}.advdec .d{background:#ef4444}
 .advlbl{display:flex;justify-content:space-between;font-size:.8rem;font-weight:600;margin-bottom:14px}
 .tabnote{opacity:.72;font-size:.88rem;line-height:1.5;margin:2px 0 12px;max-width:1000px;overflow-wrap:anywhere}
-.tabnote{opacity:.9;font-size:.88rem;line-height:1.48;margin:2px 0 12px;max-width:1100px;overflow-wrap:anywhere;
-padding:9px 12px;border-left:3px solid var(--accent);border-radius:0 10px 10px 0;
-background:color-mix(in srgb,var(--accent) 5%,var(--soft))}
 .tabnote b{font-weight:600}
 .screen-info{display:flex;flex-direction:column;justify-content:center;min-height:72px;padding:4px 2px}
 .screen-info .kicker{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;opacity:.55;font-weight:700}
 .screen-info .heading{font-size:1.05rem;font-weight:700;line-height:1.2;margin:3px 0}
 .screen-info .description{font-size:.82rem;line-height:1.4;opacity:.7}
-.screen-info{display:flex;flex-direction:column;justify-content:center;min-height:72px;padding:8px 13px;
-border-left:3px solid var(--accent);border-radius:0 11px 11px 0;
-background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 7%,var(--soft)),transparent)}
-.screen-info .kicker{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;opacity:.66;font-weight:700}
-.screen-info .heading{font-size:1.08rem;font-weight:700;line-height:1.2;margin:3px 0;color:var(--accent)}
-.screen-info .description{font-size:.82rem;line-height:1.4;opacity:.82}
 .st-key-screen-library-control{padding:8px 10px 1px;border-radius:12px;
 background:linear-gradient(110deg,color-mix(in srgb,var(--accent) 10%,var(--soft)),var(--soft));
 border:1px solid color-mix(in srgb,var(--accent) 26%,var(--line))}
@@ -208,6 +190,20 @@ def kpis(items: list) -> None:
         f'<div class="kpi" style="--kc:{c}"><div class="l">{l}</div><div class="v">{v}</div>'
         f'<div class="s">{s}</div></div>' for l, v, s, c in items)
     st.markdown(f'<div class="kpis">{cards}</div>', unsafe_allow_html=True)
+        f'<div class="kpi" style="flex:1 1 145px;min-width:120px;box-sizing:border-box;'
+        f'position:relative;overflow:hidden;border:1px solid rgba(100,116,139,.24);'
+        f'border-left:4px solid {c};border-radius:10px;padding:8px 9px 7px;'
+        f'background:rgba(100,116,139,.055);">'
+        f'<div class="l" style="font-size:.6rem;letter-spacing:.065em;text-transform:uppercase;'
+        f'font-weight:650;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{l}</div>'
+        f'<div class="v" style="font-size:1.42rem;font-weight:700;line-height:1.04;letter-spacing:-.02em;margin-top:2px;">{v}</div>'
+        f'<div class="s" style="font-size:.62rem;opacity:.68;margin-top:2px;line-height:1.15;'
+        f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{s}</div></div>' for l, v, s, c in items)
+    st.markdown(
+        f'<div class="kpis" style="display:flex;flex-flow:row wrap;align-items:stretch;gap:8px;'
+        f'width:100%;margin:2px 0 10px;">{cards}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def meters(items: list) -> None:
@@ -332,23 +328,15 @@ th{position:sticky;top:0;z-index:3;padding:0 12px;height:42px;text-align:right;w
 user-select:none;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;font-weight:600;
 color:color-mix(in srgb,var(--fg) 62%,var(--bg));background:color-mix(in srgb,var(--fg) 5%,var(--bg));
 border-bottom:1px solid var(--line)}
-th{position:sticky;top:0;z-index:3;padding:0 12px;height:44px;text-align:right;white-space:nowrap;cursor:pointer;
-user-select:none;font-size:.7rem;text-transform:uppercase;letter-spacing:.065em;font-weight:700;
-color:color-mix(in srgb,var(--fg) 78%,var(--bg));background:color-mix(in srgb,var(--accent) 8%,var(--bg));
-border-bottom:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));box-shadow:0 2px 3px color-mix(in srgb,var(--fg) 5%,transparent)}
 th:hover{color:var(--fg)}
 th.l,td.l{text-align:left}
 th .ar{display:inline-block;width:12px;color:var(--accent)}
 td{height:var(--rowh);padding:0 12px;white-space:nowrap;text-align:right;border-bottom:1px solid var(--line);
-color:color-mix(in srgb,var(--fg) 92%,var(--bg));
 font-variant-numeric:tabular-nums}
 tr:last-child td{border-bottom:none}
-tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--fg) 2.2%,var(--bg))}
 tbody tr:hover td{background:color-mix(in srgb,var(--accent) 8%,var(--bg))}
-tbody tr:hover td{background:color-mix(in srgb,var(--accent) 10%,var(--bg))}
 th:first-child,td:first-child{position:sticky;left:0;z-index:2;background:var(--bg)}
 th:first-child{z-index:4;background:color-mix(in srgb,var(--fg) 5%,var(--bg))}
-tbody tr:nth-child(even) td:first-child{background:color-mix(in srgb,var(--fg) 2.2%,var(--bg))}
 a.sym{color:var(--accent);font-weight:700;text-decoration:none}
 a.sym:hover{text-decoration:underline}
 .symcell{display:inline-flex;align-items:center;gap:6px}
@@ -395,7 +383,6 @@ html.dark .s3{color:#fbbf24}
 .ttn{font-weight:600}.full+.ttn{color:var(--g)}
 .up{color:var(--g);font-weight:600}.dn{color:var(--r);font-weight:600}
 .faint{opacity:.35}
-.faint{opacity:.52}
 .ok{color:var(--g);font-weight:700}
 .dotx{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);
 box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
@@ -408,7 +395,6 @@ box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
 .searchbar{display:flex;align-items:center;gap:10px;margin:0 0 8px}
 .searchbar input{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:9px;
 background:var(--bg);color:var(--fg);font:inherit;outline:none}
-background:color-mix(in srgb,var(--accent) 3%,var(--bg));color:var(--fg);font:inherit;outline:none}
 .searchbar input:focus{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}
 .count{font-size:.82rem;opacity:.65;white-space:nowrap}
 @media (max-width:900px){.p3{display:none}}
