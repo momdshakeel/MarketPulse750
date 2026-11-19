@@ -33,6 +33,9 @@ jobs:
       - name: Run the scan
         run: python build_data.py
 
+      - name: Archive scan history (30 days)
+        run: python archive_scan.py
+
       - name: Save the results to the repository
         run: |
           git config user.name "scanner-bot"
