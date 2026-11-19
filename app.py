@@ -15,12 +15,14 @@ Files in the repository: app.py, ui.py, nse500_rs_rating.py, build_data.py, requ
 """
 import os
 import sys
+from io import BytesIO
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import numpy as np
 import streamlit as st
 import altair as alt
+import requests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -56,6 +58,35 @@ def load_saved(key, base=None):
     source = base if base is not None else key
     cache_bust = key if isinstance(source, str) and source.startswith("http") else None
     return m.load_saved_results(source, cache_bust=cache_bust)
+
+
+@st.cache_data(ttl=300, max_entries=30, show_spinner=False)
+def load_scan_history_index(refresh_token="initial"):
+    """List dated snapshots, if the daily workflow has created any yet."""
+    response = requests.get(
+        f"{DATA_URL}/history/index.json", params={"_": refresh_token}, timeout=20
+    )
+    if response.status_code == 404:
+        return []
+    response.raise_for_status()
+    return response.json().get("scans", [])
+
+
+@st.cache_data(ttl=300, max_entries=30, show_spinner=False)
+def load_scan_history(scan_date, refresh_token="initial"):
+    """Load one dated full-scan CSV and restore boolean columns from CSV text."""
+    url = f"{DATA_URL}/history/{scan_date}.csv"
+    response = requests.get(url, params={"_": refresh_token}, timeout=30)
+    response.raise_for_status()
+    frame = pd.read_csv(BytesIO(response.content))
+    for column in frame.columns:
+        if frame[column].dtype == object:
+            values = set(frame[column].dropna().unique())
+            if values and values <= {"True", "False", True, False}:
+                frame[column] = frame[column].map(
+                    {"True": True, "False": False, True: True, False: False}
+                ).fillna(False).astype(bool)
+    return frame
 
 
 @st.cache_data(ttl=24 * 3600, show_spinner=False)
@@ -143,6 +174,8 @@ market_context = m.market_breadth(result)
 
 def reload_latest_data():
     load_saved.clear()
+    load_scan_history_index.clear()
+    load_scan_history.clear()
     st.session_state["data_refresh_token"] = datetime.now(IST).isoformat(timespec="seconds")
     st.session_state["latest_data_refresh_notice"] = True
     if mode == "live":
@@ -267,29 +300,40 @@ if st.session_state.pop("latest_data_refresh_notice", False):
 ui.inject_css(font)
 
 # ---------------- Apply filters ----------------
-df = result
-if liquid_only:
-    df = df[df["Liquid"]]
-if cap_ok and min_cap > 0:
-    keep = df["Market_Cap_Cr"] > min_cap
-    if incl_unknown:
-        keep |= df["Market_Cap_Cr"].isna()
-    df = df[keep]
-df = df[df["RS_Rating"] >= min_rs]
-if pick_sector:
-    df = df[df["Sector"].isin(pick_sector)]
-if q.strip():
-    s = q.strip().lower()
-    df = df[df["Symbol"].str.lower().str.contains(s, regex=False)
-            | df["Company Name"].str.lower().str.contains(s, regex=False, na=False)]
-for field, operator, lower_or_value, upper in custom_rules:
-    values = pd.to_numeric(df[field], errors="coerce")
-    if operator == "At least":
-        df = df[values >= lower_or_value]
-    elif operator == "At most":
-        df = df[values <= lower_or_value]
-    else:
-        df = df[(values >= lower_or_value) & (values <= upper)]
+def apply_stock_filters(frame):
+    """Apply the current sidebar stock filters to a current or historical scan."""
+    filtered = frame
+    if liquid_only and "Liquid" in filtered.columns:
+        filtered = filtered[filtered["Liquid"]]
+    if cap_ok and min_cap > 0 and "Market_Cap_Cr" in filtered.columns:
+        keep = filtered["Market_Cap_Cr"] > min_cap
+        if incl_unknown:
+            keep |= filtered["Market_Cap_Cr"].isna()
+        filtered = filtered[keep]
+    if "RS_Rating" in filtered.columns:
+        filtered = filtered[filtered["RS_Rating"] >= min_rs]
+    if pick_sector and "Sector" in filtered.columns:
+        filtered = filtered[filtered["Sector"].isin(pick_sector)]
+    if q.strip() and {"Symbol", "Company Name"}.issubset(filtered.columns):
+        search = q.strip().lower()
+        filtered = filtered[
+            filtered["Symbol"].fillna("").str.lower().str.contains(search, regex=False)
+            | filtered["Company Name"].fillna("").str.lower().str.contains(search, regex=False)
+        ]
+    for field, operator, lower_or_value, upper in custom_rules:
+        if field not in filtered.columns:
+            return filtered.iloc[0:0]
+        values = pd.to_numeric(filtered[field], errors="coerce")
+        if operator == "At least":
+            filtered = filtered[values >= lower_or_value]
+        elif operator == "At most":
+            filtered = filtered[values <= lower_or_value]
+        else:
+            filtered = filtered[(values >= lower_or_value) & (values <= upper)]
+    return filtered
+
+
+df = apply_stock_filters(result)
 
 top = df[df.TT_Pass & (df.RS_Rating >= pref_rs) & df.RS_Line_Near_High & (df.RSI14 > rsi_min)]
 tt = df[df.TT_Pass]
@@ -445,7 +489,7 @@ def stock_strength_map(frame, key):
                "today’s volume relative to its 50-day average. Hover or tap a bubble for details.")
 
 
-def show(frame, name, text, keys=None, sort=("RS_Rating", -1), titles=None):
+def show(frame, name, text, keys=None, sort=("RS_Rating", -1), titles=None, scan_date=None):
     ui.note(f"<b>{len(frame)}</b> stocks · {text}")
     if custom_rules:
         rule_labels = []
@@ -470,8 +514,39 @@ def show(frame, name, text, keys=None, sort=("RS_Rating", -1), titles=None):
             st.info("Select at least one column to display this table.")
     if not frame.empty:
         st.download_button("⬇️ Download CSV", frame.to_csv(index=False).encode("utf-8"),
-                           file_name=f"totalmarket_{name}_{as_of.date()}.csv", mime="text/csv",
+                           file_name=f"totalmarket_{name}_{scan_date or as_of.date()}.csv", mime="text/csv",
                            key=f"dl_{name}")
+
+
+def select_setup_scan(screen_key):
+    """Offer dated snapshots for the VCP/breakout pilot; fall back to latest scan."""
+    try:
+        refresh_token = st.session_state.get("data_refresh_token", "initial")
+        scans = load_scan_history_index(refresh_token)
+    except Exception as error:
+        st.warning(f"Could not load scan history ({error}). Showing the latest scan instead.")
+        return df, None
+
+    dates = [str(item.get("date", "")) for item in scans if item.get("date")]
+    if not dates:
+        st.info("No archived scans yet. A date selector will appear after the next successful Daily scan; showing the latest scan for now.")
+        return df, None
+
+    selected_date = st.selectbox(
+        "As of scan date",
+        dates,
+        index=0,
+        key=f"setup_scan_date_{screen_key}",
+        format_func=lambda value: f"Scan ({datetime.fromisoformat(value).strftime('%a, %d %b %Y')})",
+        help="History is retained for the most recent 30 calendar days. Sidebar filters are applied to the selected scan.",
+    )
+    st.caption("VCP and breakout results below use this scan date. Header metrics still show the latest scan.")
+    try:
+        snapshot = load_scan_history(selected_date, refresh_token)
+        return apply_stock_filters(snapshot), selected_date
+    except Exception as error:
+        st.error(f"Could not load the {selected_date} scan ({error}). Showing the latest scan instead.")
+        return df, None
 
 
 def rotation_chart(rotation, group_title):
@@ -705,17 +780,25 @@ elif active_screen == "trend":
                                "200 SMA rising, 30% above the 52-week low, within 25% of the 52-week high, "
                                "RS ≥ 70.")
 elif active_screen == "vcp":
-    show(vcp, "vcp_setups",
+    scan_frame, selected_scan_date = select_setup_scan("vcp")
+    historical_vcp = scan_frame[scan_frame.get("VCP_Setup", pd.Series(False, index=scan_frame.index))
+                                .fillna(False).astype(bool)].sort_values("Pct_To_Pivot")
+    show(historical_vcp, "vcp_setups",
          "<b>Stage 2</b> stocks with 2+ successively tighter pullbacks (last one ≤ 10%), volume dried up over the "
          f"last 10 days (≤ {int(m.VOL_DRYUP_RATIO * 100)}% of the 50-day average) and price "
          f"0-{m.VCP_NEAR_PIVOT:.0f}% below the <b>pivot</b>. Watch for a close above the pivot on heavy "
-         "volume. Closest to pivot first.", ui.COLS_PATTERN, ("Pct_To_Pivot", 1))
+         "volume. Closest to pivot first.", ui.COLS_PATTERN, ("Pct_To_Pivot", 1),
+         scan_date=selected_scan_date)
 elif active_screen == "breakouts":
-    show(brk, "volume_breakouts",
+    scan_frame, selected_scan_date = select_setup_scan("breakouts")
+    historical_breakouts = scan_frame[
+        scan_frame.get("Vol_Breakout", pd.Series(False, index=scan_frame.index)).fillna(False).astype(bool)
+    ].sort_values(["Breakout_Days_Ago", "Breakout_Vol_x"], ascending=[True, False])
+    show(historical_breakouts, "volume_breakouts",
          f"Closed above the prior {m.BREAKOUT_LOOKBACK}-session high on <b>≥ {m.BREAKOUT_VOL_X}× the 50-day average "
          f"volume</b> in the last {m.BREAKOUT_RECENT_DAYS} sessions, after a base no deeper than "
          f"{int(m.MAX_BASE_DEPTH * 100)}%, closing in the upper half of the day's range.",
-         ui.COLS_PATTERN, ("Breakout_Days_Ago", 1))
+         ui.COLS_PATTERN, ("Breakout_Days_Ago", 1), scan_date=selected_scan_date)
 elif active_screen == "bases":
     show(s1, "stage1_bases",
          "<b>Stage 1</b> = price around a flat 150-day (30-week) average after a decline, with a sideways base of "
