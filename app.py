@@ -186,8 +186,7 @@ def reload_latest_data():
 
 
 ui.hero("MarketPulse 750",
-        "Relative-strength ranking, Minervini Trend Template, VCP setups, volume breakouts, Weinstein "
-        "stages, market breadth and sector strength across the Nifty Total Market (Nifty 500 + Microcap 250).",
+        "RS, trend, VCP and breakout scans across the Nifty Total Market (Nifty 500 + Microcap 250).",
         [f"<b>As of</b> {as_of:%d %b %Y}", f"<b>Updated</b> {fetched_at:%d %b, %H:%M} IST",
          f"<b>{len(result)}</b> of {n_universe} stocks rated", f"<b>{n_liquid}</b> liquid",
          f"<b>Market breadth</b> {market_context['market_state']}"],
@@ -372,12 +371,12 @@ else:
 
 # ---------------- KPI cards ----------------
 ui.kpis([
-    ("Top picks", len(top), f"RS ≥ {pref_rs} + trend + RS line", "#10b981"),
-    ("Trend Template", len(tt), "all 8 conditions", "#6366f1"),
-    ("VCP setups", len(vcp), "tight & near pivot", "#8b5cf6"),
-    ("Volume breakouts", len(brk), f"last {m.BREAKOUT_RECENT_DAYS} sessions", "#f97316"),
-    ("Stage 1 bases", len(s1), "early watch-list", "#3b82f6"),
-    ("RS blue dot", len(blue), "RS line leads price", "#ec4899"),
+    ("Top picks", len(top), f"RS ≥ {pref_rs} · trend · RS line", "#10b981"),
+    ("Trend Template", len(tt), "8 rules pass", "#6366f1"),
+    ("VCP setups", len(vcp), "tight · near pivot", "#8b5cf6"),
+    ("Volume breakouts", len(brk), f"last {m.BREAKOUT_RECENT_DAYS} days", "#f97316"),
+    ("Stage 1 bases", len(s1), "early setups", "#3b82f6"),
+    ("RS blue dot", len(blue), "RS line leads", "#ec4899"),
     ("Liquid stocks", n_liquid, f"of {len(result)} · ≥ ₹{m.MIN_TRADED_VALUE_CR:.0f} cr/day", "#14b8a6"),
 ])
 
