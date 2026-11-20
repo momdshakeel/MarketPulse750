@@ -543,3 +543,46 @@ def _embed(html: str, height: int) -> None:
         st.iframe(html, height=height)
     else:
         components.html(html, height=height, scrolling=False)
+
+
+def chart_explorer(bars, symbol: str, base_start: str, base_end: str, pivot: float) -> None:
+    """Render on-demand OHLCV in KLineCharts, with user-selected base markers."""
+    payload = json.dumps({
+        "symbol": symbol,
+        "bars": bars,
+        "start": base_start,
+        "end": base_end,
+        "pivot": float(pivot),
+    }).replace("</", "<\\/")
+    html = r"""<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html,body{margin:0;background:transparent;color:inherit;font-family:Arial,sans-serif}
+#chart{height:610px;width:100%;min-width:320px}
+.hint{font-size:12px;opacity:.68;padding:4px 8px}
+</style></head><body><div id="chart"></div><div class="hint">Daily adjusted candles · Base range and pivot are user-marked chart references.</div>
+<script src="https://cdn.jsdelivr.net/npm/klinecharts@10.1.1/dist/umd/klinecharts.min.js"></script>
+<script>
+const P=__PAYLOAD__;
+function start(){
+ if(!window.klinecharts){document.getElementById('chart').innerHTML='Chart library did not load. Check browser network access and reload.';return;}
+ const c=klinecharts.init('chart');
+ c.setTimezone('Asia/Kolkata');
+ c.setSymbol({ticker:P.symbol+' · NSE',pricePrecision:2,volumePrecision:0});
+ c.setPeriod({span:1,type:'day'});
+ c.setLocale('en-US');
+ c.setDataLoader({getBars:({callback})=>callback(P.bars)});
+ c.createIndicator('MA');
+ c.createIndicator('VOL');
+ const ts=s=>{const a=s.split('-').map(Number);return Date.UTC(a[0],a[1]-1,a[2],0,0,0)};
+ const mark=()=>{
+   const lo=ts(P.start),hi=ts(P.end);
+   c.createOverlay({name:'verticalStraightLine',points:[{timestamp:lo}],extendData:'Base start'});
+   c.createOverlay({name:'verticalStraightLine',points:[{timestamp:hi}],extendData:'Base end'});
+   c.createOverlay({name:'priceLine',points:[{timestamp:hi,value:P.pivot}],extendData:'Pivot'});
+ };
+ setTimeout(mark,180);
+}
+start();
+</script></body></html>""".replace("__PAYLOAD__", payload)
+    _embed(html, 670)
