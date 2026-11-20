@@ -545,44 +545,45 @@ def _embed(html: str, height: int) -> None:
         components.html(html, height=height, scrolling=False)
 
 
-def chart_explorer(bars, symbol: str, base_start: str, base_end: str, pivot: float) -> None:
-    """Render on-demand OHLCV in KLineCharts, with user-selected base markers."""
-    payload = json.dumps({
-        "symbol": symbol,
-        "bars": bars,
-        "start": base_start,
-        "end": base_end,
-        "pivot": float(pivot),
-    }).replace("</", "<\\/")
+def chart_explorer(bars, symbol: str, base_start: str, base_end: str, pivot: float,
+                   base_history=None, visible_window="2Y") -> None:
+    """Render a transient chart with RS, moving averages, volume and base overlays."""
+    spans = {"3M": 63, "6M": 126, "1Y": 252, "2Y": 504, "5Y": 1260}
+    visible_bars = bars[-spans.get(visible_window, len(bars)):]
+    first_date = visible_bars[0].get("date", "0000-00-00") if visible_bars else "0000-00-00"
+    visible_bases = [row for row in (base_history or []) if row.get("_breakout", "") >= first_date]
+    payload = json.dumps({"symbol": symbol, "bars": visible_bars, "start": base_start,
+                          "end": base_end, "pivot": float(pivot), "bases": visible_bases}).replace("</", "<\\/")
     html = r"""<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-html,body{margin:0;background:transparent;color:inherit;font-family:Arial,sans-serif}
-#chart{height:610px;width:100%;min-width:320px}
-.hint{font-size:12px;opacity:.68;padding:4px 8px}
-</style></head><body><div id="chart"></div><div class="hint">Daily adjusted candles · Base range and pivot are user-marked chart references.</div>
+html,body{margin:0;background:#fff;color:#243042;font-family:Inter,Arial,sans-serif}
+#toolbar{display:flex;gap:6px;align-items:center;padding:6px 9px;border:1px solid #dbe1e9;border-bottom:0;border-radius:12px 12px 0 0;font-size:12px;flex-wrap:wrap}
+#toolbar b{margin-right:auto;color:#334155}#toolbar span{padding:4px 8px;border:1px solid #dbe1e9;border-radius:6px;background:#fff}
+#chart{height:575px;width:100%;min-width:320px;border:1px solid #dbe1e9;border-radius:0 0 12px 12px;overflow:hidden}
+.hint{font-size:11px;color:#788394;padding:5px 8px}
+</style></head><body><div id="toolbar"><b>__SYMBOL__ · NSE</b><span>Daily</span><span>Candles</span><span>EMA 10</span><span>EMA 21</span><span>SMA 50</span><span>SMA 200</span><span>RS vs index</span><span>Volume</span></div><div id="chart"></div><div class="hint">Daily adjusted candles · Base dates and pivot are user marked. Drag to pan; scroll or pinch to zoom.</div>
 <script src="https://cdn.jsdelivr.net/npm/klinecharts@10.1.1/dist/umd/klinecharts.min.js"></script>
 <script>
 const P=__PAYLOAD__;
 function start(){
  if(!window.klinecharts){document.getElementById('chart').innerHTML='Chart library did not load. Check browser network access and reload.';return;}
- const c=klinecharts.init('chart');
- c.setTimezone('Asia/Kolkata');
- c.setSymbol({ticker:P.symbol+' · NSE',pricePrecision:2,volumePrecision:0});
- c.setPeriod({span:1,type:'day'});
- c.setLocale('en-US');
+ const rsByTime=new Map(P.bars.map(b=>[b.timestamp,b.rs]));
+ try{klinecharts.registerIndicator({name:'MP_RS_LINE',shortName:'RS vs index',series:'normal',precision:2,figures:[{key:'rs',title:'RS: ',type:'line'}],calc:(data)=>data.map(k=>({rs:rsByTime.get(k.timestamp)??null}))});}catch(e){}
+ const c=klinecharts.init('chart');c.setTimezone('Asia/Kolkata');
+ c.setSymbol({ticker:P.symbol+' · NSE',pricePrecision:2,volumePrecision:0});c.setPeriod({span:1,type:'day'});c.setLocale('en-US');
  c.setDataLoader({getBars:({callback})=>callback(P.bars)});
- c.createIndicator('MA');
- c.createIndicator('VOL');
- const ts=s=>{const a=s.split('-').map(Number);return Date.UTC(a[0],a[1]-1,a[2],0,0,0)};
- const mark=()=>{
-   const lo=ts(P.start),hi=ts(P.end);
-   c.createOverlay({name:'verticalStraightLine',points:[{timestamp:lo}],extendData:'Base start'});
-   c.createOverlay({name:'verticalStraightLine',points:[{timestamp:hi}],extendData:'Base end'});
-   c.createOverlay({name:'priceLine',points:[{timestamp:hi,value:P.pivot}],extendData:'Pivot'});
- };
- setTimeout(mark,180);
+ c.createIndicator({name:'EMA',calcParams:[10,21],paneId:'candle_pane'},true);
+ c.createIndicator({name:'MA',calcParams:[50,200],paneId:'candle_pane'},true);
+ c.createIndicator('VOL');c.createIndicator('MP_RS_LINE');
+ const ts=s=>{const a=s.split('-').map(Number);return Date.UTC(a[0],a[1]-1,a[2],0,0,0)-330*60000};
+ const mark=()=>{const lo=ts(P.start),hi=ts(P.end);
+  c.createOverlay({name:'verticalStraightLine',points:[{timestamp:lo}],extendData:'Base start'});
+  c.createOverlay({name:'verticalStraightLine',points:[{timestamp:hi}],extendData:'Base end'});
+  c.createOverlay({name:'priceLine',points:[{timestamp:hi,value:P.pivot}],extendData:'Selected pivot'});
+  P.bases.forEach((b,i)=>c.createOverlay({name:'horizontalSegment',points:[{timestamp:ts(b._end),value:Number(b._pivot)},{timestamp:ts(b._breakout),value:Number(b._pivot)}],extendData:'B'+(i+1)}));
+ };setTimeout(mark,180);
 }
 start();
-</script></body></html>""".replace("__PAYLOAD__", payload)
+</script></body></html>""".replace("__PAYLOAD__", payload).replace("__SYMBOL__", symbol)
     _embed(html, 670)
