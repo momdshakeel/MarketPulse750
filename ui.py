@@ -401,46 +401,14 @@ const val=(d,k)=>d[k]==null?'–':d[k];
 const num=(d,k,digits=1,suffix='')=>d[k]==null?'–':Number(d[k]).toFixed(digits)+suffix;
 function closeDetails(){document.getElementById('overlay').style.display='none';}
 function openDetails(symbol){
-  const d=P.details.find(x=>String(x.Symbol)===String(symbol));if(!d)return;
-  const change=Number(d['Chg_1D_%']||0),changeClass=change>=0?'positive':'negative';
-  const conditionRows=DETAIL_TT.map(([k,label])=>'<div class="check"><b class="'+(d[k]?'positive':'negative')+'">'+(d[k]?'✓':'×')+'</b><span>'+esc(label)+'</span></div>').join('');
-  const setups=[['VCP_Setup','VCP setup'],['Vol_Breakout','Volume breakout'],['Stage1_Base','Stage 1 base'],['RS_Blue_Dot','RS blue dot']]
-    .filter(([k])=>d[k]).map(([,label])=>'<span class="tag">'+label+'</span>').join('');
-  const mc=P.marketContext||{};
-  const trendReason={
-    'Strong trend':'Stage 2, trend-template score ≥6/8, RS rating ≥80, and positive, improving 3-month relative strength.',
-    'Developing':'Stage 2, trend-template score ≥5/8, RS rating ≥70, and positive 3-month relative strength.',
-    'Weakening':'Stage 4, or a low trend-template score / negative relative strength with down-volume pressure.',
-    'Mixed':'The scanner rules do not currently align as a strong, developing, or weakening trend.'
-  }[d.Trend_State]||'Trend status appears after the next daily scan.';
-  const marketLine=mc.market_state
-    ?'<div class="dsub">Broad market: <b>'+esc(mc.market_state)+'</b> · '+esc(num(mc,'pct_above_50',0,'%'))+' above 50 SMA · '+esc(num(mc,'pct_above_200',0,'%'))+' above 200 SMA</div>'
-    :'<div class="dsub">Broad-market context appears after the next daily scan.</div>';
-  const sectorLine=d.Sector_Rank==null
-    ?'<div class="dsub">Sector strength appears after the next daily scan.</div>'
-    :'<div class="dsub">Sector rank <b>'+esc(d.Sector_Rank)+'</b> · strength score <b>'+esc(d.Sector_Strength==null?'–':d.Sector_Strength)+'</b></div>';
-  document.getElementById('detail').innerHTML=
-    '<div class="dhead"><div><h2>'+esc(val(d,'Symbol'))+'</h2><div class="dsub">'+esc(val(d,'Company Name'))+
-    (d.Sector?' · '+esc(d.Sector):'')+'</div></div><div class="dprice">₹'+esc(num(d,'Close',2))+
-    '<div class="'+changeClass+'" style="font-size:.82rem">'+(change>0?'+':'')+esc(num(d,'Chg_1D_%',2,'%'))+'</div></div></div>'+
-    '<div class="cards">'+[
-      ['Trend status',val(d,'Trend_State')],['RS rating',val(d,'RS_Rating')],['Stage',val(d,'Stage')],
-      ['RS vs Nifty · 3M',num(d,'RS_Excess_3M_%',1,'%')],['RS vs Nifty · 6M',num(d,'RS_Excess_6M_%',1,'%')],
-      ['RS improving',d.RS_Improving==null?'–':(d.RS_Improving?'Yes':'No')],
-      ['Volume vs 50-day avg',num(d,'Vol_x_50d',1,'×')],['20D volume pressure',val(d,'Volume_Pressure_20D')],
-      ['Up/down volume · 20D',num(d,'Up_Down_Vol_Ratio_20D',2,'×')],['Above 50 SMA',num(d,'Pct_Above_50SMA',1,'%')],
-      ['Extension',val(d,'Extension_State')],['From 52-week high',num(d,'Pct_From_52W_High',1,'%')],
-      ['RS change',num(d,'RS_Change',1)],['RSI (14)',num(d,'RSI14',1)],
-      ['Weighted return',num(d,'Weighted_Return_%',1,'%')],['Avg traded value',num(d,'Avg_Value_Cr',1,' cr/day')]
-    ].map(([label,value])=>'<div class="metric"><div class="label">'+label+'</div><div class="value">'+esc(value)+'</div></div>').join('')+'</div>'+
-    '<div class="section"><h3>Trend status rules</h3><div class="dsub">'+esc(trendReason)+' These are screening heuristics, not forecasts.</div></div>'+
-    '<div class="section"><h3>Trend template ('+esc(val(d,'TT_Score'))+'/8)</h3><div class="checks">'+conditionRows+'</div></div>'+
-    '<div class="section"><h3>Setups today</h3><div class="tags">'+(setups||'<span class="dsub">No active setup flags</span>')+'</div></div>'+
-    '<div class="section"><h3>Base details</h3><div class="dsub">'+(d.Base_Forming?'Base forming':'No current base detected')+
-    ' · '+(d.Base_Days==null?'–':esc(d.Base_Days)+' sessions')+
-    (d['Base_Depth_%']==null?'':' · '+esc(num(d,'Base_Depth_%',1,'%'))+' depth')+'</div></div>'+
-    '<div class="section"><h3>Market and sector context</h3>'+marketLine+sectorLine+'</div>';
-  document.getElementById('overlay').style.display='flex';
+  try{
+    const target=new URL(window.parent.location.href);
+    target.searchParams.set('chart_symbol',String(symbol));
+    window.parent.location.assign(target.toString());
+  }catch(e){
+    document.getElementById('detail').innerHTML='<div class="dhead"><div><h2>'+esc(symbol)+'</h2><div class="dsub">Open Chart Explorer from the screen library to view its chart.</div></div></div>';
+    document.getElementById('overlay').style.display='flex';
+  }
 }
 function cell(c,r){
   const v=r[c.k],k='<td class="'+pc(c)+'">';
