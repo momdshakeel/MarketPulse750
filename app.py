@@ -698,6 +698,7 @@ SCREEN_LIBRARY = {
     "🧱  Setups · Stage 1 bases": "bases",
     "🔵  Strength · RS blue dot": "blue_dot",
     "🌐  Market · Breadth & sectors": "market",
+    "📈  Tools · Chart Explorer": "chart",
     "📋  Universe · All stocks": "all",
     "📖  Learn · How to use this scanner": "guide",
 }
@@ -710,6 +711,7 @@ SCREEN_DESCRIPTIONS = {
     "bases": "Early sideways bases around a flat long-term moving average.",
     "blue_dot": "Stocks whose relative-strength line leads price to a 52-week high.",
     "market": "Market participation, group strength, and the new rotation map.",
+    "chart": "Search a stock and inspect daily candles, volume, moving averages, and a manually marked base and pivot.",
     "all": "The full rated universe, with the current sidebar filters applied.",
     "guide": "Definitions and a practical workflow for reading scanner results.",
 }
@@ -781,6 +783,76 @@ elif active_screen == "momentum":
                 )
         elif momentum_market_ok is False:
             st.info("No candidates are shown while the market gate is below either moving average.")
+elif active_screen == "chart":
+    st.markdown("### 📈 Chart Explorer")
+    st.caption("On-demand daily chart for research. History is held temporarily in this browser session and is not saved to project files.")
+    choices = (result[["Symbol", "Company Name"]].dropna(subset=["Symbol"])
+               .drop_duplicates("Symbol").sort_values("Symbol"))
+    names = dict(zip(choices["Symbol"].astype(str), choices["Company Name"].fillna("").astype(str)))
+    with st.form("chart_explorer_load"):
+        c1, c2, c3 = st.columns([1.2, .7, .65])
+        with c1:
+            chart_symbol = st.selectbox(
+                "Search NSE symbol or company", choices["Symbol"].astype(str).tolist(),
+                format_func=lambda s: f"{s} · {names.get(s, '')}".strip(" ·"),
+                key="chart_explorer_symbol",
+            )
+        with c2:
+            chart_period = st.selectbox("History", ["1y", "2y", "5y"], index=1, key="chart_explorer_period")
+        with c3:
+            load_chart = st.form_submit_button("Load chart", type="primary", use_container_width=True)
+    if load_chart:
+        try:
+            with st.spinner(f"Fetching {chart_period} of daily history for {chart_symbol}…"):
+                history = m.download_chart_history(chart_symbol, chart_period)
+            st.session_state["chart_explorer_data"] = {
+                "symbol": chart_symbol, "period": chart_period,
+                "bars": [{
+                    "timestamp": int(pd.Timestamp(day).tz_localize(IST).timestamp() * 1000),
+                    "open": float(row.Open), "high": float(row.High), "low": float(row.Low),
+                    "close": float(row.Close), "volume": int(row.Volume) if pd.notna(row.Volume) else 0,
+                } for day, row in history.iterrows()],
+                "dates": [day.strftime("%Y-%m-%d") for day in history.index],
+            }
+        except Exception as exc:
+            st.error(f"Could not load chart history: {exc}")
+    loaded = st.session_state.get("chart_explorer_data")
+    if loaded and loaded["symbol"] == chart_symbol and loaded["period"] == chart_period and loaded["bars"]:
+        first_day, last_day = datetime.strptime(loaded["dates"][0], "%Y-%m-%d").date(), datetime.strptime(loaded["dates"][-1], "%Y-%m-%d").date()
+        suggested_start = datetime.strptime(loaded["dates"][max(0, len(loaded["dates"]) - 61)], "%Y-%m-%d").date()
+        start_key = f"chart_base_start_{chart_symbol}_{chart_period}"
+        end_key = f"chart_base_end_{chart_symbol}_{chart_period}"
+        if start_key not in st.session_state:
+            st.session_state[start_key] = suggested_start
+        if end_key not in st.session_state:
+            st.session_state[end_key] = last_day
+        # Keep the end-date widget valid when the user moves the start past it.
+        saved_start = max(first_day, min(st.session_state[start_key], last_day))
+        saved_end = max(saved_start, min(st.session_state[end_key], last_day))
+        st.session_state[start_key] = saved_start
+        st.session_state[end_key] = saved_end
+        marks = st.columns([1, 1, 1.15, 1.3])
+        with marks[0]:
+            base_start = st.date_input("Base start", min_value=first_day, max_value=last_day, key=start_key)
+        with marks[1]:
+            base_end = st.date_input("Base end", min_value=base_start, max_value=last_day, key=end_key)
+        start_text, end_text = base_start.isoformat(), base_end.isoformat()
+        selected_bars = [b for b in loaded["bars"] if start_text <= datetime.fromtimestamp(b["timestamp"] / 1000, IST).date().isoformat() <= end_text]
+        if not selected_bars:
+            st.warning("No candles fall inside the selected base dates. Adjust the range.")
+        else:
+            default_pivot = max(b["high"] for b in selected_bars)
+            pivot_key = f"chart_pivot_{chart_symbol}_{chart_period}_{start_text}_{end_text}"
+            with marks[2]:
+                pivot = st.number_input("Pivot price", min_value=0.0, value=float(default_pivot), step=max(default_pivot * .01, .05), format="%.2f", key=pivot_key)
+            base_low = min(b["low"] for b in selected_bars)
+            base_depth = (default_pivot - base_low) / default_pivot * 100 if default_pivot else 0
+            with marks[3]:
+                st.metric("Selected base depth", f"{base_depth:.1f}%", help="(Highest high − lowest low) ÷ highest high for the selected dates.")
+            ui.chart_explorer(loaded["bars"], chart_symbol, start_text, end_text, pivot)
+            st.caption(f"{len(loaded['bars'])} daily candles · prices through {last_day:%d %b %Y} · source: Yahoo Finance. Base boundaries and pivot are manual chart references, not automatic pattern validation.")
+    elif loaded:
+        st.info("Choose the loaded symbol and history range above, or load a new chart.")
 elif active_screen == "trend":
     show(tt, "trend_template", "All 8 Minervini conditions: price above the 50/150/200 SMA, 150 &gt; 200 SMA, "
                                "200 SMA rising, 30% above the 52-week low, within 25% of the 52-week high, "
