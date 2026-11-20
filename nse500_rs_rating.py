@@ -69,7 +69,31 @@ def download_chart_history(symbol: str, period: str = "2y") -> pd.DataFrame:
         raise ValueError("Price source omitted chart fields: " + ", ".join(missing))
     frame = frame[needed].apply(pd.to_numeric, errors="coerce").dropna(subset=["Open", "High", "Low", "Close"])
     frame.index = pd.to_datetime(frame.index).tz_localize(None).normalize()
-    return frame[~frame.index.duplicated(keep="last")].sort_index()
+    frame = frame[~frame.index.duplicated(keep="last")].sort_index()
+    # Pull one benchmark history for a relative-strength line. Fall back to Nifty 50
+    # if Yahoo does not return Nifty 500 history. This data also remains in memory only.
+    frame["Benchmark_Close"] = np.nan
+    for benchmark in BENCHMARKS:
+        try:
+            index_frame = yf.download(
+                benchmark, period=period, interval="1d", auto_adjust=True,
+                progress=False, threads=False, timeout=25,
+            )
+            if isinstance(index_frame.columns, pd.MultiIndex):
+                index_frame.columns = index_frame.columns.get_level_values(0)
+            if "Close" not in index_frame:
+                continue
+            index_close = pd.to_numeric(index_frame["Close"], errors="coerce")
+            index_close.index = pd.to_datetime(index_close.index).tz_localize(None).normalize()
+            index_close = index_close[~index_close.index.duplicated(keep="last")].sort_index()
+            aligned = index_close.reindex(frame.index).ffill()
+            if aligned.notna().any():
+                frame["Benchmark_Close"] = aligned
+                frame.attrs["benchmark"] = benchmark
+                break
+        except Exception:
+            continue
+    return frame
 
 MIN_RS_TT = 70                   # Trend Template condition 8
 PREFERRED_RS = 80                # used for "top picks"
