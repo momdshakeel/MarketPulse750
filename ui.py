@@ -1,9 +1,15 @@
 """Look & feel for the NSE 500 scanner: fonts, global CSS, hero, KPI cards and
 sortable, responsive HTML tables that follow Streamlit's light/dark theme."""
 import json
+import hashlib
+from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
+
+_TABLE_COMPONENT = components.declare_component(
+    "marketpulse_result_table", path=str(Path(__file__).with_name("table_component"))
+)
 
 # ---------------------------------------------------------------- fonts
 FONTS = {
@@ -400,20 +406,10 @@ const DETAIL_TT=[
 const val=(d,k)=>d[k]==null?'–':d[k];
 const num=(d,k,digits=1,suffix='')=>d[k]==null?'–':Number(d[k]).toFixed(digits)+suffix;
 function closeDetails(){document.getElementById('overlay').style.display='none';}
-function openDetails(symbol){
-  try{
-    const target=new URL(window.parent.location.href);
-    target.searchParams.set('chart_symbol',String(symbol));
-    window.parent.location.assign(target.toString());
-  }catch(e){
-    document.getElementById('detail').innerHTML='<div class="dhead"><div><h2>'+esc(symbol)+'</h2><div class="dsub">Open Chart Explorer from the screen library to view its chart.</div></div></div>';
-    document.getElementById('overlay').style.display='flex';
-  }
-}
 function cell(c,r){
   const v=r[c.k],k='<td class="'+pc(c)+'">';
   switch(c.type){
-    case 'sym':return k+'<span class="symcell"><a class="sym" target="_blank" rel="noopener" href="https://www.tradingview.com/chart/?symbol=NSE%3A'+encodeURIComponent(v)+'">'+esc(v)+'</a><button class="info-btn" type="button" title="Stock details" aria-label="Stock details for '+esc(v)+'" data-symbol="'+esc(v)+'">i</button></span></td>';
+    case 'sym':return k+'<span class="symcell"><a class="sym" target="_blank" rel="noopener" href="https://www.tradingview.com/chart/?symbol=NSE%3A'+encodeURIComponent(v)+'">'+esc(v)+'</a><button class="info-btn" type="button" title="Stock details and chart" aria-label="Stock details and chart for '+esc(v)+'" data-symbol="'+esc(v)+'">i</button></span></td>';
     case 'grp':return k+'<b>'+esc(v)+'</b></td>';
     case 'cr0':return k+(v==null?'<span class="faint">–</span>':Number(v).toLocaleString('en-IN',{maximumFractionDigits:0}))+'</td>';
     case 'cr':return k+(v==null?'<span class="faint">–</span>':Number(v).toLocaleString('en-IN',{maximumFractionDigits:1}))+'</td>';
@@ -453,13 +449,13 @@ function draw(){
     document.getElementById('count').textContent=query?rows.length+' of '+P.rows.length+' rows':P.rows.length+' rows';}
   document.querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;
     if(k===sk)sd=-sd;else{sk=k;sd=P.cols.find(c=>c.k===k).left?1:-1;}draw();});
-  document.querySelectorAll('.info-btn').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openDetails(btn.dataset.symbol);});
+  document.querySelectorAll('.info-btn').forEach(btn=>btn.onclick=e=>{e.stopPropagation();window.parent.postMessage({type:'marketpulse:chart-request',symbol:btn.dataset.symbol,nonce:Date.now()},'*');});
 }
 if(P.searchLabel)document.getElementById('search').addEventListener('input',e=>{query=e.target.value.trim().toLocaleLowerCase();draw();});
 // follow the Streamlit theme (light / dark / custom) live
 function sync(){
   let bg,fg;
-  try{const app=window.parent.document.querySelector('.stApp'),cs=window.parent.getComputedStyle(app);bg=cs.backgroundColor;fg=cs.color;}catch(e){}
+  try{let d=window.parent.document,w=window.parent;if(!d.querySelector('.stApp')){w=window.parent.parent;d=w.document;}const app=d.querySelector('.stApp'),cs=w.getComputedStyle(app);bg=cs.backgroundColor;fg=cs.color;}catch(e){}
   if(!bg||bg==='rgba(0, 0, 0, 0)'||!fg){const d=matchMedia('(prefers-color-scheme: dark)').matches;bg=d?'rgb(14,17,23)':'rgb(255,255,255)';fg=d?'rgb(250,250,250)':'rgb(49,51,63)';}
   const r=document.documentElement;r.style.setProperty('--bg',bg);r.style.setProperty('--fg',fg);
   const m=(bg.match(/[\d.]+/g)||[255,255,255]).map(Number);r.classList.toggle('dark',(0.299*m[0]+0.587*m[1]+0.114*m[2])<128);
@@ -502,7 +498,17 @@ def table(df, keys, sort, font="Inter", density="Comfortable",
             .replace("__FAMILY__", font_family(font))
             .replace("__ROWH__", str(rowh))
             .replace("__PAYLOAD__", payload))
-    _embed(html, height)
+    identity_key = "Symbol" if "Symbol" in df.columns else (df.columns[0] if len(df.columns) else "table")
+    identity = df[identity_key].head(3).fillna("").astype(str).tolist() if len(df) and identity_key in df else []
+    key_source = json.dumps([keys, search_keys or [], search_label, titles or {}, identity_key, identity], sort_keys=True)
+    component_key = "mp_table_" + hashlib.md5(key_source.encode("utf-8")).hexdigest()[:14]
+    clicked = _TABLE_COMPONENT(html=html, height=height, key=component_key, default=None)
+    if isinstance(clicked, dict) and clicked.get("symbol"):
+        nonce = clicked.get("nonce")
+        if nonce and nonce != st.session_state.get("_last_table_chart_click"):
+            st.session_state["_last_table_chart_click"] = nonce
+            st.session_state["_symbol_chart_request"] = str(clicked["symbol"])
+            st.rerun()
 
 
 def _embed(html: str, height: int) -> None:
