@@ -751,6 +751,108 @@ def chart_base_history(history: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def fetch_chart_payload(symbol: str, period: str) -> dict:
+    """Fetch and calculate chart-only data in memory; no disk or repository writes."""
+    history = m.download_chart_history(symbol, period)
+    relative = history["Close"] / history["Benchmark_Close"].replace(0, np.nan)
+    relative = relative / relative.dropna().iloc[0] * 100 if relative.notna().any() else relative
+    base_history = chart_base_history(history)
+    return {
+        "symbol": symbol, "period": period,
+        "benchmark": history.attrs.get("benchmark", "Unavailable"),
+        "bars": [{
+            "date": day.strftime("%Y-%m-%d"),
+            "timestamp": int(pd.Timestamp(day).tz_localize(IST).timestamp() * 1000),
+            "open": float(row.Open), "high": float(row.High), "low": float(row.Low),
+            "close": float(row.Close), "volume": int(row.Volume) if pd.notna(row.Volume) else 0,
+            "rs": float(relative.loc[day]) if pd.notna(relative.loc[day]) else None,
+        } for day, row in history.iterrows()],
+        "dates": [day.strftime("%Y-%m-%d") for day in history.index],
+        "base_history": base_history.to_dict("records"),
+    }
+
+
+@st.dialog("Stock details · Technical chart", width="large")
+def show_symbol_chart_dialog(symbol: str) -> None:
+    symbol = str(symbol).strip().upper()
+    periods = ["1y", "2y", "5y"]
+    period_key = f"symbol_chart_period_{symbol}"
+    period = st.selectbox("Chart history", periods, index=0, key=period_key)
+    payload = st.session_state.get("symbol_chart_dialog_data")
+    if not payload or payload.get("symbol") != symbol or payload.get("period") != period:
+        try:
+            with st.spinner(f"Loading daily history for {symbol}…"):
+                payload = fetch_chart_payload(symbol, period)
+            st.session_state["symbol_chart_dialog_data"] = payload
+        except Exception as exc:
+            st.error(f"Could not load chart history: {exc}")
+            if st.button("Close", key=f"close_chart_error_{symbol}"):
+                st.query_params.pop("chart_symbol", None)
+                st.rerun()
+            return
+    bars = payload["bars"]
+    if not bars:
+        st.info("No daily history is available for this symbol.")
+        return
+    row_match = result[result["Symbol"].astype(str) == symbol]
+    row = row_match.iloc[0] if not row_match.empty else None
+    company = str(row.get("Company Name", "")) if row is not None else ""
+    sector = str(row.get("Sector", "")) if row is not None else ""
+    st.markdown(f"### {symbol}　<span style='font-weight:400;opacity:.7'>{company} · {sector}</span>", unsafe_allow_html=True)
+    latest = bars[-1]
+    prior = bars[-2]["close"] if len(bars) > 1 else latest["close"]
+    change = (latest["close"] / prior - 1) * 100 if prior else 0
+    stats = st.columns(4)
+    stats[0].metric("Latest close", f"₹{latest['close']:,.2f}", f"{change:+.2f}%")
+    stats[1].metric("RS rating", str(row.get("RS_Rating", "—")) if row is not None else "—")
+    stats[2].metric("Stage", str(row.get("Stage", "—")) if row is not None else "—")
+    stats[3].metric("RS benchmark", {"^CRSLDX": "Nifty 500", "^NSEI": "Nifty 50 fallback"}.get(payload["benchmark"], "Unavailable"))
+    as_of = datetime.strptime(payload["dates"][-1], "%Y-%m-%d").date()
+    suggested_start = datetime.strptime(payload["dates"][max(0, len(payload["dates"]) - 61)], "%Y-%m-%d").date()
+    first_day = datetime.strptime(payload["dates"][0], "%Y-%m-%d").date()
+    start_key, end_key = f"dialog_base_start_{symbol}_{period}", f"dialog_base_end_{symbol}_{period}"
+    st.session_state.setdefault(start_key, suggested_start)
+    st.session_state.setdefault(end_key, as_of)
+    start_saved = max(first_day, min(st.session_state[start_key], as_of))
+    end_saved = max(start_saved, min(st.session_state[end_key], as_of))
+    st.session_state[start_key], st.session_state[end_key] = start_saved, end_saved
+    controls = st.columns([1, 1, 1.15, 1.3])
+    with controls[0]:
+        base_start = st.date_input("Base start", min_value=first_day, max_value=as_of, key=start_key)
+    with controls[1]:
+        base_end = st.date_input("Base end", min_value=base_start, max_value=as_of, key=end_key)
+    start_text, end_text = base_start.isoformat(), base_end.isoformat()
+    base_bars = [bar for bar in bars if start_text <= bar["date"] <= end_text]
+    if not base_bars:
+        st.warning("Choose dates that contain chart candles.")
+        return
+    default_pivot = max(bar["high"] for bar in base_bars)
+    pivot_key = f"dialog_pivot_{symbol}_{period}_{start_text}_{end_text}"
+    with controls[2]:
+        pivot = st.number_input("Pivot price", min_value=0.0, value=float(default_pivot),
+                                step=max(default_pivot * .01, .05), format="%.2f", key=pivot_key)
+    depth = (default_pivot - min(bar["low"] for bar in base_bars)) / default_pivot * 100
+    with controls[3]:
+        st.metric("Selected base depth", f"{depth:.1f}%")
+    visible = st.selectbox("Chart range", ["3M", "6M", "1Y", "2Y", "5Y"],
+                           index={"1y": 2, "2y": 3, "5y": 4}[period], key=f"dialog_visible_{symbol}_{period}")
+    ui.chart_explorer(bars, symbol, start_text, end_text, pivot,
+                      payload["base_history"], visible_window=visible)
+    st.markdown("#### Base history · last 12 months")
+    history_table = pd.DataFrame(payload["base_history"])
+    if history_table.empty:
+        st.info("No completed bases matching the rolling history rule were found.")
+    else:
+        st.dataframe(history_table[["Base", "Started", "Length", "Depth", "Pivot", "Breakout", "Volume", "Then"]],
+                     hide_index=True, use_container_width=True)
+        st.caption("Historical base/breakout labels are rolling OHLCV estimates, not a forecast.")
+    st.caption(f"Prices through {as_of:%d %b %Y} · Yahoo Finance · session-only data; nothing is saved to project files.")
+    if st.button("Close chart", key=f"close_chart_dialog_{symbol}"):
+        st.query_params.pop("chart_symbol", None)
+        st.session_state.pop("symbol_chart_dialog_data", None)
+        st.rerun()
+
+
 SCREEN_LIBRARY = {
     "🏆  Discovery · Top picks": "top",
     "✨  Discovery · Momentum Candidates": "momentum",
@@ -798,6 +900,14 @@ with st.container(border=True):
             f'<div class="description">{SCREEN_DESCRIPTIONS[active_screen]}</div></div>',
             unsafe_allow_html=True,
         )
+
+requested_chart_symbol = st.query_params.get("chart_symbol")
+if requested_chart_symbol:
+    valid_symbols = set(result["Symbol"].dropna().astype(str))
+    if str(requested_chart_symbol) in valid_symbols:
+        show_symbol_chart_dialog(str(requested_chart_symbol))
+    else:
+        st.warning("That symbol is not in the current scanner universe.")
 
 if active_screen == "top":
     show(top, "top_picks", f"Passes all 8 Trend Template conditions, <b>RS ≥ {pref_rs}</b>, RS line within 5% "
