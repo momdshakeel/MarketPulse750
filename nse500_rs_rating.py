@@ -47,6 +47,30 @@ CHANGE_DAYS = 1                  # RS change vs N trading days ago
 BENCHMARKS = ["^CRSLDX", "^NSEI"]  # Nifty 500, fallback Nifty 50 (for RS Line)
 TRADING_DAYS_52W = 252
 
+
+def download_chart_history(symbol: str, period: str = "2y") -> pd.DataFrame:
+    """Fetch one symbol's daily OHLCV for the interactive chart; never writes to disk."""
+    if period not in {"1y", "2y", "5y"}:
+        raise ValueError("Chart period must be 1y, 2y, or 5y")
+    ticker = str(symbol).strip().upper()
+    if not ticker:
+        raise ValueError("Choose a stock symbol")
+    frame = yf.download(
+        f"{ticker}.NS", period=period, interval="1d", auto_adjust=True,
+        progress=False, threads=False, timeout=25,
+    )
+    if frame is None or frame.empty:
+        raise ValueError(f"No daily price history returned for {ticker}. Check the symbol or try later.")
+    if isinstance(frame.columns, pd.MultiIndex):
+        frame.columns = frame.columns.get_level_values(0)
+    needed = ["Open", "High", "Low", "Close", "Volume"]
+    missing = [column for column in needed if column not in frame.columns]
+    if missing:
+        raise ValueError("Price source omitted chart fields: " + ", ".join(missing))
+    frame = frame[needed].apply(pd.to_numeric, errors="coerce").dropna(subset=["Open", "High", "Low", "Close"])
+    frame.index = pd.to_datetime(frame.index).tz_localize(None).normalize()
+    return frame[~frame.index.duplicated(keep="last")].sort_index()
+
 MIN_RS_TT = 70                   # Trend Template condition 8
 PREFERRED_RS = 80                # used for "top picks"
 SMA200_RISING_DAYS = 21          # 21 = 1 month (use ~105 for the stricter 5-month test)
