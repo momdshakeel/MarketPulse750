@@ -689,6 +689,68 @@ def show_breadth_and_sectors():
     show(members, "sector_stocks", f"Liquid stocks in <b>{pick}</b>, sorted by RS Rating.")
 
 
+def chart_base_history(history: pd.DataFrame) -> pd.DataFrame:
+    """Find distinct, recently completed base breakouts for this chart session only."""
+    frame = history.dropna(subset=["High", "Low", "Close", "Volume"]).copy()
+    n = len(frame)
+    if n < 55:
+        return pd.DataFrame()
+    highs, lows = frame["High"].to_numpy(), frame["Low"].to_numpy()
+    closes, volumes = frame["Close"].to_numpy(), frame["Volume"].to_numpy()
+    dates = frame.index
+    earliest = max(0, n - 252)
+    candidates = []
+    windows = (30, 45, 60, 90, 120, 150)
+    for end in range(max(29, earliest), n - 1):
+        for length in windows:
+            start = end - length + 1
+            if start < 0:
+                continue
+            hi = float(highs[start:end + 1].max())
+            lo = float(lows[start:end + 1].min())
+            if hi <= 0 or (hi - lo) / hi > .35:
+                continue
+            if abs(closes[end] / closes[start] - 1) > .15:
+                continue
+            after = next((j for j in range(end + 1, min(n, end + 21)) if closes[j] > hi), None)
+            if after is None or n - 1 - after > 252:
+                continue
+            avg_vol = float(np.nanmean(volumes[max(0, after - 50):after]))
+            vol_x = float(volumes[after] / avg_vol) if avg_vol > 0 else np.nan
+            best = float(highs[after:].max() / closes[after] - 1) * 100
+            now = float(closes[-1] / closes[after] - 1) * 100
+            status = "Failed" if closes[-1] < hi * .92 else "Holding"
+            candidates.append({
+                "end_i": end, "start_i": start, "breakout_i": after, "length": length,
+                "depth": (hi - lo) / hi * 100, "pivot": hi, "vol_x": vol_x,
+                "best": best, "now": now, "status": status,
+            })
+    # Multiple overlapping windows often describe the same base. Keep the longest
+    # qualifying window for each breakout cluster, then show the latest five.
+    candidates.sort(key=lambda item: (item["breakout_i"], item["length"]), reverse=True)
+    distinct = []
+    for item in candidates:
+        if any(abs(item["breakout_i"] - old["breakout_i"]) < 15 for old in distinct):
+            continue
+        distinct.append(item)
+        if len(distinct) == 5:
+            break
+    rows = []
+    for idx, item in enumerate(distinct, 1):
+        rows.append({
+            "Base": f"B{idx}", "Started": dates[item["start_i"]].strftime("%d %b %y"),
+            "Length": f"{item['length']} sessions", "Depth": f"{item['depth']:.1f}%",
+            "Pivot": round(item["pivot"], 2), "Breakout": dates[item["breakout_i"]].strftime("%d %b %y"),
+            "Volume": f"{item['vol_x']:.1f}×" if np.isfinite(item["vol_x"]) else "—",
+            "Then": f"{item['status']} · best {item['best']:+.1f}% · now {item['now']:+.1f}%",
+            "_start": dates[item["start_i"]].strftime("%Y-%m-%d"),
+            "_end": dates[item["end_i"]].strftime("%Y-%m-%d"),
+            "_breakout": dates[item["breakout_i"]].strftime("%Y-%m-%d"),
+            "_pivot": item["pivot"],
+        })
+    return pd.DataFrame(rows)
+
+
 SCREEN_LIBRARY = {
     "🏆  Discovery · Top picks": "top",
     "✨  Discovery · Momentum Candidates": "momentum",
@@ -726,6 +788,9 @@ with st.container(border=True):
                 help="Search and choose a scanner view. Screens are grouped by purpose.",
             )
     active_screen = SCREEN_LIBRARY[selected_screen]
+    if active_screen != "chart":
+        # Chart candles and derived bases are discarded when the user leaves this view.
+        st.session_state.pop("chart_explorer_data", None)
     with screen_summary:
         st.markdown(
             f'<div class="screen-info"><div class="kicker">Selected view</div>'
@@ -805,20 +870,48 @@ elif active_screen == "chart":
         try:
             with st.spinner(f"Fetching {chart_period} of daily history for {chart_symbol}…"):
                 history = m.download_chart_history(chart_symbol, chart_period)
+            relative = history["Close"] / history["Benchmark_Close"].replace(0, np.nan)
+            relative = relative / relative.dropna().iloc[0] * 100 if relative.notna().any() else relative
+            base_history = chart_base_history(history)
             st.session_state["chart_explorer_data"] = {
                 "symbol": chart_symbol, "period": chart_period,
+                "benchmark": history.attrs.get("benchmark", "Unavailable"),
                 "bars": [{
+                    "date": day.strftime("%Y-%m-%d"),
                     "timestamp": int(pd.Timestamp(day).tz_localize(IST).timestamp() * 1000),
                     "open": float(row.Open), "high": float(row.High), "low": float(row.Low),
                     "close": float(row.Close), "volume": int(row.Volume) if pd.notna(row.Volume) else 0,
+                    "rs": float(relative.loc[day]) if pd.notna(relative.loc[day]) else None,
                 } for day, row in history.iterrows()],
                 "dates": [day.strftime("%Y-%m-%d") for day in history.index],
+                "base_history": base_history.to_dict("records"),
             }
         except Exception as exc:
             st.error(f"Could not load chart history: {exc}")
     loaded = st.session_state.get("chart_explorer_data")
     if loaded and loaded["symbol"] == chart_symbol and loaded["period"] == chart_period and loaded["bars"]:
         first_day, last_day = datetime.strptime(loaded["dates"][0], "%Y-%m-%d").date(), datetime.strptime(loaded["dates"][-1], "%Y-%m-%d").date()
+        stock_row = result[result["Symbol"].astype(str) == chart_symbol]
+        stock_row = stock_row.iloc[0] if not stock_row.empty else None
+        sector_name = str(stock_row.get("Sector", "")) if stock_row is not None else ""
+        st.markdown(f"#### {chart_symbol}　<span style='font-weight:400;opacity:.72'>{names.get(chart_symbol, '')} · {sector_name}</span>", unsafe_allow_html=True)
+        if stock_row is not None:
+            stats = st.columns(4)
+            latest_bar = loaded["bars"][-1]
+            prior_close = loaded["bars"][-2]["close"] if len(loaded["bars"]) > 1 else latest_bar["close"]
+            day_change = (latest_bar["close"] / prior_close - 1) * 100 if prior_close else 0
+            stats[0].metric("Latest close", f"₹{latest_bar['close']:,.2f}", f"{day_change:+.2f}%")
+            stats[1].metric("RS rating", f"{stock_row.get('RS_Rating', '—')}", f"{stock_row.get('RS_Change', 0):+g} vs prior scan")
+            stats[2].metric("Stage", str(stock_row.get("Stage", "—")))
+            benchmark_name = {"^CRSLDX": "Nifty 500", "^NSEI": "Nifty 50 fallback"}.get(loaded["benchmark"], "Unavailable")
+            stats[3].metric("RS benchmark", benchmark_name)
+        rs_bars = [bar["rs"] for bar in loaded["bars"]]
+        rs_cols = st.columns(4)
+        for col, label, lookback in zip(rs_cols, ["1 month RS", "3 month RS", "6 month RS", "12 month RS"], [21, 63, 126, 252]):
+            old_i = max(0, len(rs_bars) - 1 - lookback)
+            old_rs, now_rs = rs_bars[old_i], rs_bars[-1]
+            change = (now_rs / old_rs - 1) * 100 if old_rs and now_rs else None
+            col.metric(label, f"{change:+.1f}%" if change is not None else "Unavailable")
         suggested_start = datetime.strptime(loaded["dates"][max(0, len(loaded["dates"]) - 61)], "%Y-%m-%d").date()
         start_key = f"chart_base_start_{chart_symbol}_{chart_period}"
         end_key = f"chart_base_end_{chart_symbol}_{chart_period}"
@@ -831,6 +924,12 @@ elif active_screen == "chart":
         saved_end = max(saved_start, min(st.session_state[end_key], last_day))
         st.session_state[start_key] = saved_start
         st.session_state[end_key] = saved_end
+        range_default = {"1y": "1Y", "2y": "2Y", "5y": "5Y"}.get(chart_period, "2Y")
+        range_key = f"chart_visible_range_{chart_symbol}_{chart_period}"
+        if range_key not in st.session_state:
+            st.session_state[range_key] = range_default
+        visible_window = st.selectbox("Chart range", ["3M", "6M", "1Y", "2Y", "5Y"],
+                                      key=range_key, help="Changes the displayed candles only; data is not downloaded again.")
         marks = st.columns([1, 1, 1.15, 1.3])
         with marks[0]:
             base_start = st.date_input("Base start", min_value=first_day, max_value=last_day, key=start_key)
@@ -849,8 +948,17 @@ elif active_screen == "chart":
             base_depth = (default_pivot - base_low) / default_pivot * 100 if default_pivot else 0
             with marks[3]:
                 st.metric("Selected base depth", f"{base_depth:.1f}%", help="(Highest high − lowest low) ÷ highest high for the selected dates.")
-            ui.chart_explorer(loaded["bars"], chart_symbol, start_text, end_text, pivot)
-            st.caption(f"{len(loaded['bars'])} daily candles · prices through {last_day:%d %b %Y} · source: Yahoo Finance. Base boundaries and pivot are manual chart references, not automatic pattern validation.")
+            ui.chart_explorer(loaded["bars"], chart_symbol, start_text, end_text, pivot,
+                              loaded.get("base_history", []), visible_window=visible_window)
+            st.markdown("#### Base history · last 12 months")
+            history_rows = pd.DataFrame(loaded.get("base_history", []))
+            if not history_rows.empty:
+                st.dataframe(history_rows[["Base", "Started", "Length", "Depth", "Pivot", "Breakout", "Volume", "Then"]],
+                             hide_index=True, use_container_width=True)
+                st.caption("Historical bases are estimated from daily OHLCV using a rolling range and drift rule; breakout, volume, and outcome labels are calculated heuristically. Past outcomes are history, not a forecast.")
+            else:
+                st.info("No completed bases matching the history rule were found in the last year of this chart data.")
+            st.caption(f"{len(loaded['bars'])} daily candles · prices through {last_day:%d %b %Y} · source: Yahoo Finance. Chart history, RS series and base records are session-only and are not saved to project files.")
     elif loaded:
         st.info("Choose the loaded symbol and history range above, or load a new chart.")
 elif active_screen == "trend":
