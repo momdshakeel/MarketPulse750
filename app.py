@@ -787,7 +787,7 @@ def show_symbol_chart_dialog(symbol: str) -> None:
         except Exception as exc:
             st.error(f"Could not load chart history: {exc}")
             if st.button("Close", key=f"close_chart_error_{symbol}"):
-                st.query_params.pop("chart_symbol", None)
+                st.session_state.pop("_symbol_chart_request", None)
                 st.rerun()
             return
     bars = payload["bars"]
@@ -848,7 +848,7 @@ def show_symbol_chart_dialog(symbol: str) -> None:
         st.caption("Historical base/breakout labels are rolling OHLCV estimates, not a forecast.")
     st.caption(f"Prices through {as_of:%d %b %Y} · Yahoo Finance · session-only data; nothing is saved to project files.")
     if st.button("Close chart", key=f"close_chart_dialog_{symbol}"):
-        st.query_params.pop("chart_symbol", None)
+        st.session_state.pop("_symbol_chart_request", None)
         st.session_state.pop("symbol_chart_dialog_data", None)
         st.rerun()
 
@@ -901,7 +901,7 @@ with st.container(border=True):
             unsafe_allow_html=True,
         )
 
-requested_chart_symbol = st.query_params.get("chart_symbol")
+requested_chart_symbol = st.session_state.get("_symbol_chart_request")
 if requested_chart_symbol:
     valid_symbols = set(result["Symbol"].dropna().astype(str))
     if str(requested_chart_symbol) in valid_symbols:
